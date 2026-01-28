@@ -1,10 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
-const BARBERO_ID = 'TU_ID_DE_BARBERO_REAL'; // El que sacaste de tu tabla
+const BARBERO_ID = 'TU_ID_DE_BARBERO_REAL';
 const BARBERIA_ID = 'TU_ID_DE_BARBERIA_REAL';
 
-// Store user states temporarily (in production, use Redis or database)
 const userStates: Map<number, { ultimaFechaElegida?: string; ultimaHoraElegida?: string }> = new Map();
 
 Deno.serve(async (req) => {
