@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 export const SuperAdminRoute = () => {
   const { session, isAdmin, loading } = useAuth();
 
-  if (loading) return <div className="text-white p-10">Cargando permisos...</div>;
+  if (loading) return <div className="text-slate-900 dark:text-white p-10">Cargando permisos...</div>;
   
   // Si no hay sesión o no es admin, lo mandamos al login
   return session && isAdmin ? <Outlet /> : <Navigate to="/login" replace />;
@@ -15,7 +15,7 @@ export const SuperAdminRoute = () => {
 export const DashboardRoute = () => {
   const { session, perfil, loading } = useAuth();
 
-  if (loading) return <div className="text-white p-10">Cargando dashboard...</div>;
+  if (loading) return <div className="text-slate-900 dark:text-white p-10">Cargando dashboard...</div>;
 
   if (!session) return <Navigate to="/login" replace />;
 

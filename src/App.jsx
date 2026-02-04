@@ -2,17 +2,15 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
-// Context
 import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext'; // <--- Importamos el Theme
+import { ThemeProvider } from './context/ThemeContext';
 
-// Layouts & Utils
 import Header from './components/Header/Header'; 
 import Footer from './components/Footer/Footer';
 import ScrollToTop from './utils/ScrollToTop';
 import { SuperAdminRoute, DashboardRoute } from './utils/ProtectedRoutes';
 
-// Pages
+import Home from './pages/Home/Home';
 import AuthPortal from './pages/Auth/Portal/Portal';
 import ForgotPassword from './pages/Auth/ForgotPassword/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword/ResetPassword';
@@ -24,18 +22,17 @@ import Onboarding from './pages/Onboarding/Onboarding';
 
 export default function App() {
   return (
-    <ThemeProvider> {/* 1. Envolvemos con ThemeProvider */}
+    <ThemeProvider>
       <AuthProvider>
         <Router>
           <ScrollToTop />
-          
-          {/* 2. Background Dinámico: bg-slate-50 (Claro) vs bg-[#050507] (Tu Oscuro) */}
           <div className="min-h-screen bg-slate-50 dark:bg-[#050507] text-slate-900 dark:text-gray-200 font-sans flex flex-col transition-colors duration-500">
             
             <Header /> 
             
             <div className="flex-1">
               <Routes>
+                <Route path="/" element={<Home />} />
                 <Route path="/login" element={<AuthPortal />} />
                 <Route path="/registro" element={<AuthPortal />} />
                 
@@ -64,8 +61,6 @@ export default function App() {
            richColors 
            position="bottom-right" 
            closeButton
-           // El estilo del toast se adapta mejor dejándolo default con richColors, 
-           // o podés personalizarlo si querés
         />
       </AuthProvider>
     </ThemeProvider>

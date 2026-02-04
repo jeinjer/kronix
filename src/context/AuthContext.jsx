@@ -3,59 +3,82 @@ import { supabase } from '../utils/supabase';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
 
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
-  const [perfil, setPerfil] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // 1. Check sesión inicial
-    const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session) await fetchPerfil(session.user.id);
-      else setLoading(false);
+    // 1. Cargar sesión inicial
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await checkAdminRole(session.user.id);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setLoading(false);
+      }
     };
-    initAuth();
 
-    // 2. Escuchar cambios
+    initSession();
+
+    // 2. Escuchar cambios (Login, Logout, Auto-refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session) await fetchPerfil(session.user.id);
-      else {
-        setPerfil(null);
-        setLoading(false);
+      setUser(session?.user ?? null);
+      setLoading(false);
+
+      if (session?.user) {
+        await checkAdminRole(session.user.id);
+      } else {
+        setIsAdmin(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchPerfil = async (userId) => {
+  // Función auxiliar para chequear roles (puedes expandirla luego)
+  const checkAdminRole = async (userId) => {
+    // Aquí podrías consultar tu tabla de 'perfiles' o 'roles'
+    // Por ahora lo dejamos simple o simulado
+    // const { data } = await supabase.from('perfiles').select('rol').eq('id', userId).single();
+    // setIsAdmin(data?.rol === 'admin');
+    setIsAdmin(false); // Por defecto false hasta que conectes tu lógica de roles
+  };
+
+  // --- LA FUNCIÓN QUE NECESITAS ---
+  const logout = async () => {
     try {
-      const { data, error } = await supabase
-        .from('roles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (!error) setPerfil(data);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      // La redirección a /login o home la maneja App.jsx al detectar session = null
     } catch (error) {
-      console.error('Error rol:', error);
-    } finally {
-      setLoading(false);
+      console.error("Error al cerrar sesión:", error.message);
     }
   };
 
   const value = {
     session,
-    perfil,
-    loading,
-    isAdmin: perfil?.rol === 'superadmin',
-    // Helpers para limpiar código en otros lados
-    logout: () => supabase.auth.signOut(),
+    user,
+    logout,
+    isAdmin,
+    loading
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 };

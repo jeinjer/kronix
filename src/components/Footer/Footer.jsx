@@ -3,20 +3,40 @@ import { Code2 } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#020203] py-12 transition-colors duration-300">
-      <div className="container mx-auto px-4 flex flex-col items-center justify-center text-center">
+    <footer className="bg-slate-950 border-t border-white/5 py-16 font-sans">
+      <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
         
-        <div className="mb-4 p-3 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500 dark:text-slate-600">
-          <Code2 size={20} />
+        {/* Logo Section */}
+        <div className="flex flex-col items-center md:items-start">
+           <div className="flex items-center gap-2 mb-2">
+             <div className="flex items-center justify-center w-10 h-10">
+                <img 
+                  src="/kronix.png" 
+                  alt="Kronix Logo" 
+                  className="w-8 h-8 object-contain invert drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" 
+                />
+             </div>
+             <span className="text-2xl font-black text-white tracking-tighter">KRONIX</span>
+           </div>
+           <p className="text-slate-500 text-sm">El tiempo bajo control.</p>
         </div>
 
-        <p className="text-slate-500 text-xs font-medium tracking-wide">
-          &copy; {new Date().getFullYear()} <span className="text-slate-900 dark:text-slate-300 font-bold">TOMMASYS</span>.
-        </p>
-        
-        <p className="text-slate-400 dark:text-slate-600 text-[10px] mt-2 uppercase tracking-widest">
-          Ingeniería de Software & Soluciones SaaS
-        </p>
+        {/* Developer Info */}
+        <div className="flex flex-col items-center md:items-end text-center md:text-right">
+           <div className="flex items-center gap-2 text-slate-400 text-sm mb-2">
+             <Code2 size={16} />
+             <span>Desarrollado por</span>
+           </div>
+           <p className="text-sm font-bold text-white tracking-widest uppercase">
+             TOMMASYS
+           </p>
+           <p className="text-[10px] text-slate-600 uppercase tracking-wider mt-1">
+             Software Engineering Solutions
+           </p>
+           <p className="text-slate-700 text-xs mt-4">
+             &copy; {new Date().getFullYear()} Todos los derechos reservados.
+           </p>
+        </div>
 
       </div>
     </footer>
