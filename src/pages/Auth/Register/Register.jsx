@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Mail, Lock, ShieldCheck, Loader2, ArrowRight } from 'lucide-react';
-import { supabase } from '../../../utils/supabase';
+import { supabase } from '@/supabase/supabaseClient';
 
 export default function Register() {
   const { register, handleSubmit, watch } = useForm();
@@ -16,8 +16,8 @@ export default function Register() {
     try {
       // 1. Validar Whitelist
       const { data: suscripcion } = await supabase
-        .from('suscripciones_saas')
-        .select('estado')
+        .from('saas_invitations')
+        .select('status')
         .eq('email', data.email)
         .single();
 

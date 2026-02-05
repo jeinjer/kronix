@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { supabase } from '../../../utils/supabase';
+import { supabase } from '@/supabase/supabaseClient';
 
 export default function Login() {
   const { register, handleSubmit } = useForm();
@@ -17,7 +17,7 @@ export default function Login() {
       toast.error('Credenciales incorrectas');
     } else {
       toast.success('¡Bienvenido!');
-      navigate('/dashboard'); // El router redirigirá si es admin u onboarding
+      navigate('/dashboard');
     }
     setLoading(false);
   };

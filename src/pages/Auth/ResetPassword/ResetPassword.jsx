@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Lock, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
-import { supabase } from '../../../utils/supabase';
+import { supabase } from '@/supabase/supabaseClient';
 
 export default function ResetPassword() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm();

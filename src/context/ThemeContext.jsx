@@ -5,7 +5,6 @@ const ThemeContext = createContext();
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
-  // Indicamos si el usuario ya expresó una preferencia explícita
   const [isUserPreference, setIsUserPreference] = useState(() => {
     if (typeof window === 'undefined') return false;
     return Boolean(localStorage.getItem('tommasys-theme'));
@@ -15,8 +14,6 @@ export const ThemeProvider = ({ children }) => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('tommasys-theme');
       if (saved) return saved;
-
-      // Si no hay preferencia guardada, usamos la preferencia del sistema
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         return 'dark';
       }
@@ -34,20 +31,14 @@ export const ThemeProvider = ({ children }) => {
       root.classList.remove('dark');
     }
 
-    // Guardamos la preferencia SOLO si fue elegida por el usuario (toggle)
     if (isUserPreference) {
       localStorage.setItem('tommasys-theme', theme);
     } else {
       localStorage.removeItem('tommasys-theme');
     }
 
-    // Depuración rápida: mostrar la clase actual en <html>
-    // (puedes quitar este console.log cuando todo esté estable)
-    console.log('html.className =', root.className);
   }, [theme, isUserPreference]);
 
-  // Escuchamos cambios en la preferencia del sistema, pero solo si el usuario
-  // no escogió manualmente un tema (es decir, respetamos elección del usuario)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');

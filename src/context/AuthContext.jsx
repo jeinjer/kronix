@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../utils/supabase';
+import { supabase } from '@/supabase/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -10,59 +10,98 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Lógica Robusta: Consulta directa a la tabla en lugar de RPC
+  const checkAdminRole = async (userId) => {
+    if (!userId) {
+      setIsAdmin(false);
+      return;
+    }
+    try {
+      // Leemos directamente la columna is_superadmin
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_superadmin')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        // Si no se encuentra el perfil o hay error de red, asumimos false
+        console.warn('⚠️ No se pudo verificar rol admin:', error.message);
+        setIsAdmin(false);
+      } else {
+        setIsAdmin(!!data?.is_superadmin);
+      }
+    } catch (err) {
+      console.error("❌ Error inesperado verificando rol:", err);
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
-    // 1. Cargar sesión inicial
-    const initSession = async () => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await checkAdminRole(session.user.id);
+        // 1. Obtener sesión inicial
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          if (initialSession?.user) {
+            setSession(initialSession);
+            setUser(initialSession.user);
+            // Esperamos la verificación
+            await checkAdminRole(initialSession.user.id);
+          } else {
+            setSession(null);
+            setUser(null);
+            setIsAdmin(false);
+          }
         }
       } catch (error) {
-        console.error("Error checking session:", error);
+        console.error("❌ Error crítico inicializando auth:", error);
       } finally {
-        setLoading(false);
+        // 2. GARANTÍA TOTAL: Esto se ejecuta siempre, haya error o no.
+        if (mounted) {
+            setLoading(false);
+        }
       }
     };
 
-    initSession();
+    initializeAuth();
 
-    // 2. Escuchar cambios (Login, Logout, Auto-refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    // 3. Listener de eventos
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (!mounted) return;
 
-      if (session?.user) {
-        await checkAdminRole(session.user.id);
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+
+      if (currentSession?.user) {
+        // Verificamos rol en segundo plano sin bloquear la UI si ya cargó
+        await checkAdminRole(currentSession.user.id);
       } else {
         setIsAdmin(false);
       }
+      
+      // Aseguramos que el loading se apague en cambios de estado también
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Función auxiliar para chequear roles (puedes expandirla luego)
-  const checkAdminRole = async (userId) => {
-    // Aquí podrías consultar tu tabla de 'perfiles' o 'roles'
-    // Por ahora lo dejamos simple o simulado
-    // const { data } = await supabase.from('perfiles').select('rol').eq('id', userId).single();
-    // setIsAdmin(data?.rol === 'admin');
-    setIsAdmin(false); // Por defecto false hasta que conectes tu lógica de roles
-  };
-
-  // --- LA FUNCIÓN QUE NECESITAS ---
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      // La redirección a /login o home la maneja App.jsx al detectar session = null
+      await supabase.auth.signOut();
+      setIsAdmin(false);
+      setSession(null);
+      setUser(null);
     } catch (error) {
       console.error("Error al cerrar sesión:", error.message);
     }
@@ -78,7 +117,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

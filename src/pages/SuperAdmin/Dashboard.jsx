@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../utils/supabase';
+import { supabase } from '../../supabase/supabaseClient';
 import { toast } from 'sonner';
 import { 
   ShieldCheck, UserPlus, Search, Filter, 

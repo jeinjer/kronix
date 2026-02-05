@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../../utils/supabase';
+import { supabase } from '@/supabase/supabaseClient';
 
 export default function SubscriptionGuard({ children, user }) {
   const [estado, setEstado] = useState(null);

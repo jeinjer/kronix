@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Check, X, ArrowRight, Layers, Zap } from 'lucide-react';
-import { supabase } from '../../../utils/supabase';
-import { toast } from 'sonner'; // Usamos sonner para consistencia con App.jsx
+import { supabase } from '@/supabase/supabaseClient';
+import { toast } from 'sonner'; 
+
+// IMPORTANTE: Importamos el servicio para verificar si tiene empresa
+import { getUserOrganizations } from '@/supabase/services/organizations';
 
 export default function AuthPortal() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Detectar si estamos en /registro para iniciar del lado derecho
   const [isLogin, setIsLogin] = useState(location.pathname !== '/registro');
   const [loading, setLoading] = useState(false);
   
@@ -43,21 +45,38 @@ export default function AuthPortal() {
     try {
       if (isLogin) {
         // --- LOGIN ---
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
         toast.success("¡Bienvenido al sistema!");
-        navigate('/dashboard');
+
+        // --- LÓGICA DE REDIRECCIÓN INTELIGENTE ---
+        try {
+            // Verificamos si tiene organizaciones
+            const { data: orgs } = await getUserOrganizations(authData.user.id);
+
+            if (orgs && orgs.length > 0) {
+                // Ya tiene negocio -> Dashboard
+                navigate('/dashboard');
+            } else {
+                // Es nuevo -> Bienvenida -> Onboarding
+                navigate('/welcome');
+            }
+        } catch (err) {
+            console.error("Error verificando orgs:", err);
+            // Si falla la verificación, por seguridad al dashboard
+            navigate('/dashboard'); 
+        }
         
       } else {
         // --- REGISTRO ---
         
-        // 1. Validar Whitelist (Usando maybeSingle para evitar error 406)
+        // 1. Validar Whitelist
         const { data: suscripcion, error: whitelistError } = await supabase
           .from('suscripciones_saas')
           .select('estado')
           .eq('email', email)
-          .maybeSingle(); // <--- CLAVE: Devuelve null si no existe, en vez de error.
+          .maybeSingle(); 
 
         if (whitelistError) {
             console.error(whitelistError);
@@ -79,21 +98,17 @@ export default function AuthPortal() {
         });
 
         if (authError) {
-            // Si el error es "User already registered", lo mostramos amigable
             if (authError.message.includes("already registered")) {
                 throw new Error("Ya existe una cuenta con este email. Iniciá sesión.");
             }
             throw authError;
         }
 
-        // Check extra: Si Supabase está configurado para no exponer "User already registered",
-        // devuelve un user con identities vacío si ya existe.
         if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
              throw new Error("Este email ya está registrado. Por favor iniciá sesión.");
         }
         
         toast.success("Cuenta creada. Verificá tu correo.");
-        // Opcional: Cambiar a modo login automáticamente
         toggleMode();
       }
     } catch (error) {

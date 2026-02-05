@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Mail, ArrowLeft, Send, Zap, Loader2 } from 'lucide-react';
-import { supabase } from '../../../utils/supabase';
+import { supabase } from '@/supabase/supabaseClient';
 
 export default function ForgotPassword() {
   const { register, handleSubmit } = useForm();
