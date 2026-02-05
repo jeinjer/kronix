@@ -2,24 +2,24 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// 1. Ruta solo para Stefano (SuperAdmin)
 export const SuperAdminRoute = () => {
   const { session, isAdmin, loading } = useAuth();
 
-  if (loading) return <div className="text-slate-900 dark:text-white p-10">Cargando permisos...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Cargando...</div>;
   
-  // Si no hay sesión o no es admin, lo mandamos al login
   return session && isAdmin ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export const DashboardRoute = () => {
+  // Ahora extraemos 'perfil' que SÍ existe en el contexto nuevo
   const { session, perfil, loading } = useAuth();
 
-  if (loading) return <div className="text-slate-900 dark:text-white p-10">Cargando dashboard...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Cargando...</div>;
 
   if (!session) return <Navigate to="/login" replace />;
 
-  if (session && !perfil?.barberia_id) {
+  // Si tiene sesión pero no tiene barbería asignada, va al onboarding
+  if (!perfil?.barberia_id) {
     return <Navigate to="/onboarding" replace />;
   }
 

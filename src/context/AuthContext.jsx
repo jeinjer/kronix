@@ -10,32 +10,55 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
+  const [perfil, setPerfil] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Lógica Robusta: Consulta directa a la tabla en lugar de RPC
-  const checkAdminRole = async (userId) => {
-    if (!userId) {
-      setIsAdmin(false);
-      return;
-    }
+  // Función de carga con logs detallados
+  const fetchUserData = async (userId) => {
+    console.log(`👤 [Auth] Buscando datos para usuario: ${userId}`);
+    
     try {
-      // Leemos directamente la columna is_superadmin
-      const { data, error } = await supabase
+      // 1. Obtener Perfil
+      console.time('fetchProfile');
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('is_superadmin')
+        .select('*')
         .eq('id', userId)
         .single();
-      
-      if (error) {
-        // Si no se encuentra el perfil o hay error de red, asumimos false
-        console.warn('⚠️ No se pudo verificar rol admin:', error.message);
-        setIsAdmin(false);
-      } else {
-        setIsAdmin(!!data?.is_superadmin);
+      console.timeEnd('fetchProfile');
+
+      if (profileError) {
+        console.error('❌ [Auth] Error bajando perfil:', profileError.message);
+        throw profileError;
       }
+      console.log('✅ [Auth] Perfil descargado:', profileData);
+
+      // 2. Obtener Organización (Barbería)
+      console.time('fetchOrg');
+      const { data: orgData, error: orgError } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', userId)
+        .maybeSingle(); // Usamos maybeSingle para no dar error si es null
+      console.timeEnd('fetchOrg');
+
+      if (orgError) console.warn('⚠️ [Auth] Error o sin org:', orgError.message);
+
+      // 3. Armar objeto completo
+      const fullProfile = {
+        ...profileData,
+        barberia_id: orgData?.organization_id || null
+      };
+
+      console.log('📦 [Auth] State Final calculado:', fullProfile);
+      
+      setPerfil(fullProfile);
+      setIsAdmin(!!fullProfile.is_superadmin);
+
     } catch (err) {
-      console.error("❌ Error inesperado verificando rol:", err);
+      console.error("☠️ [Auth] FATAL en fetchUserData:", err.message);
+      setPerfil(null);
       setIsAdmin(false);
     }
   };
@@ -44,50 +67,56 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
 
     const initializeAuth = async () => {
+      console.log("🚀 [Auth] Iniciando servicio...");
+      
       try {
-        // 1. Obtener sesión inicial
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.time('getSession');
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        console.timeEnd('getSession');
+
+        if (error) throw error;
         
         if (mounted) {
           if (initialSession?.user) {
+            console.log("🔓 [Auth] Sesión encontrada. Iniciando carga de datos...");
             setSession(initialSession);
             setUser(initialSession.user);
-            // Esperamos la verificación
-            await checkAdminRole(initialSession.user.id);
+            await fetchUserData(initialSession.user.id);
           } else {
+            console.log("🔒 [Auth] No hay sesión activa.");
             setSession(null);
             setUser(null);
-            setIsAdmin(false);
+            setPerfil(null);
           }
         }
       } catch (error) {
-        console.error("❌ Error crítico inicializando auth:", error);
+        console.error("🔥 [Auth] Error CRÍTICO en inicialización:", error);
       } finally {
-        // 2. GARANTÍA TOTAL: Esto se ejecuta siempre, haya error o no.
         if (mounted) {
-            setLoading(false);
+          console.log("🏁 [Auth] LOADING -> FALSE (Fin del proceso)");
+          setLoading(false);
         }
       }
     };
 
     initializeAuth();
 
-    // 3. Listener de eventos
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log(`🔄 [Auth Event] ${event}`);
       if (!mounted) return;
 
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
-        // Verificamos rol en segundo plano sin bloquear la UI si ya cargó
-        await checkAdminRole(currentSession.user.id);
+        setLoading(true); // Poner loading true temporalmente al cambiar usuario
+        await fetchUserData(currentSession.user.id);
+        setLoading(false);
       } else {
+        setPerfil(null);
         setIsAdmin(false);
+        setLoading(false);
       }
-      
-      // Aseguramos que el loading se apague en cambios de estado también
-      setLoading(false);
     });
 
     return () => {
@@ -97,22 +126,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setIsAdmin(false);
-      setSession(null);
-      setUser(null);
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error.message);
-    }
+    console.log("👋 [Auth] Cerrando sesión...");
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    setPerfil(null);
+    setIsAdmin(false);
   };
 
   const value = {
     session,
     user,
-    logout,
+    perfil,
     isAdmin,
-    loading
+    loading,
+    logout
   };
 
   return (
