@@ -2,34 +2,84 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/supabase/supabaseClient';
 
 export default function SubscriptionGuard({ children, user }) {
-  const [estado, setEstado] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isValid, setIsValid] = useState(true);
 
   useEffect(() => {
-    const checkStatus = async () => {
-      // Obtenemos el ID de suscripción vinculado al perfil del usuario
-      const { data: perfil } = await supabase
-        .from('roles')
-        .select('suscripciones_saas(estado)')
-        .eq('id', user.id)
-        .single();
+    let mounted = true;
 
-      setEstado(perfil?.suscripciones_saas?.estado);
-      setLoading(false);
+    const run = async () => {
+      try {
+        if (!user?.id) {
+          if (mounted) setIsValid(true);
+          return;
+        }
+
+        // 1) Resolver organization_id del usuario (primera org)
+        const { data: orgRows, error: orgErr } = await supabase
+          .from('organization_members')
+          .select('organization_id, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        if (orgErr) {
+          console.error('[SubscriptionGuard] Error leyendo organization_members:', orgErr);
+          if (mounted) setIsValid(true);
+          return;
+        }
+
+        const organizationId = orgRows?.[0]?.organization_id;
+
+        // Si todavía no tiene organización (onboarding), no bloqueamos
+        if (!organizationId) {
+          if (mounted) setIsValid(true);
+          return;
+        }
+
+        // 2) Consultar status de suscripción por org (RPC)
+        const { data: statusObj, error: statusErr } = await supabase.rpc('get_org_subscription_status', {
+          p_org_id: organizationId,
+        });
+
+        if (statusErr) {
+          console.error('[SubscriptionGuard] Error en get_org_subscription_status:', statusErr);
+          if (mounted) setIsValid(true);
+          return;
+        }
+
+        if (mounted) setIsValid(Boolean(statusObj?.is_valid));
+      } catch (e) {
+        console.error('[SubscriptionGuard] Error inesperado:', e);
+        if (mounted) setIsValid(true);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
-    checkStatus();
-  }, [user]);
+
+    run();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
 
   if (loading) return <div>Validando acceso...</div>;
 
-  // Solo permitimos entrar si está 'Activa' o 'En espera'
-  if (estado === 'Inactiva') {
+  if (!isValid) {
     return (
       <div className="h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
         <div className="max-w-md bg-white p-8 rounded-3xl">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">Acceso Restringido</h2>
-          <p className="text-slate-600 mb-6">Tu suscripción está inactiva. Contactate con administración para regularizar el servicio.</p>
-          <button onClick={() => supabase.auth.signOut()} className="bg-slate-900 text-white px-6 py-2 rounded-xl">Cerrar Sesión</button>
+          <p className="text-slate-600 mb-6">
+            Tu suscripción no está vigente. Contactate con administración para regularizar el servicio.
+          </p>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="bg-slate-900 text-white px-6 py-2 rounded-xl"
+          >
+            Cerrar Sesión
+          </button>
         </div>
       </div>
     );

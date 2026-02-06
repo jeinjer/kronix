@@ -71,24 +71,25 @@ export default function AuthPortal() {
       } else {
         // --- REGISTRO ---
         
-        // 1. Validar Whitelist
-        const { data: suscripcion, error: whitelistError } = await supabase
-          .from('suscripciones_saas')
-          .select('estado')
+        // 1. Validar Whitelist (Invitación SaaS)
+        const { data: invitacion, error: whitelistError } = await supabase
+          .from('saas_invitations')
+          .select('status, plan_type')
           .eq('email', email)
-          .maybeSingle(); 
+          .maybeSingle();
 
         if (whitelistError) {
-            console.error(whitelistError);
-            throw new Error("Error verificando suscripción. Contactá soporte.");
+          console.error(whitelistError);
+          throw new Error("Error verificando invitación. Contactá soporte.");
         }
 
-        if (!suscripcion) {
+        if (!invitacion) {
           throw new Error("Este email no tiene invitación. Contactá a ventas.");
         }
 
-        if (suscripcion.estado === 'Inactiva') {
-          throw new Error("Tu suscripción está inactiva.");
+        const inviteStatus = String(invitacion.status ?? '').toLowerCase().trim();
+        if (['inactive', 'revoked', 'blocked', 'banned'].includes(inviteStatus)) {
+          throw new Error("Tu invitación está inactiva.");
         }
 
         // 2. Registro en Supabase Auth

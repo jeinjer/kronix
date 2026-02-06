@@ -18,7 +18,6 @@ export const getUserRole = async (userId, orgId) => {
     }
 };
 
-// Actualizado para usar la misma lógica robusta que AuthContext
 export const isAdmin = async (userId) => {
   try {
     if (!userId) return { isAdmin: false, error: 'User ID required' };

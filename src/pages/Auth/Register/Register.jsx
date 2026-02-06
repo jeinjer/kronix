@@ -21,7 +21,12 @@ export default function Register() {
         .eq('email', data.email)
         .single();
 
-      if (!suscripcion || suscripcion.estado === 'Inactiva') {
+      if (!suscripcion) {
+        throw new Error('Email no autorizado. Contactá a soporte.');
+      }
+
+      const inviteStatus = String(suscripcion.status ?? '').toLowerCase().trim();
+      if (['inactive', 'revoked', 'blocked', 'banned'].includes(inviteStatus)) {
         throw new Error('Email no autorizado o cuenta inactiva. Contactá a soporte.');
       }
 

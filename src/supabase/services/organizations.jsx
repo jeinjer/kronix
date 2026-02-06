@@ -1,19 +1,21 @@
 import { supabase } from '@/supabase/supabaseClient';
 
+const ORG_LOGOS_BUCKET = 'organizations-logos';
+
 export const uploadOrganizationLogo = async (file, userId) => {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}-${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const filePath = fileName;
 
     const { error: uploadError } = await supabase.storage
-      .from('organizations-logos')
-      .upload(filePath, file);
+      .from(ORG_LOGOS_BUCKET)
+      .upload(filePath, file, { upsert: true });
 
     if (uploadError) throw uploadError;
 
     const { data } = supabase.storage
-      .from('organization-logos')
+      .from(ORG_LOGOS_BUCKET)
       .getPublicUrl(filePath);
 
     return { url: data.publicUrl, error: null };
@@ -22,7 +24,6 @@ export const uploadOrganizationLogo = async (file, userId) => {
     return { url: null, error };
   }
 };
-
 
 export const createOrganization = async (orgPayload) => {
   try {
@@ -34,17 +35,16 @@ export const createOrganization = async (orgPayload) => {
       p_province_id: orgPayload.province_id,
       p_city_id: orgPayload.city_id,
       p_street: orgPayload.street,
-      p_number: orgPayload.number
+      p_number: orgPayload.number,
     });
 
     if (error) throw error;
 
     if (data && data.success === false) {
-       throw new Error(data.message || 'Error al crear la organización');
+      throw new Error(data.message || 'Error al crear la organización');
     }
 
     return { data, error: null };
-
   } catch (error) {
     console.error('Error en createOrganization:', error);
     return { data: null, error };
@@ -54,7 +54,7 @@ export const createOrganization = async (orgPayload) => {
 export const getUserOrganizations = async (userId) => {
   try {
     const { data, error } = await supabase.rpc('get_user_organizations', {
-      p_user_id: userId
+      p_user_id: userId,
     });
 
     if (error) throw error;
@@ -66,21 +66,21 @@ export const getUserOrganizations = async (userId) => {
 };
 
 export const addOrganizationAdmin = async (orgId, emailToAdd) => {
-    try {
-        const { data, error } = await supabase.rpc('add_organization_admin', {
-            p_org_id: orgId,
-            p_email_to_add: emailToAdd
-        });
+  try {
+    const { data, error } = await supabase.rpc('add_organization_admin', {
+      p_org_id: orgId,
+      p_email_to_add: emailToAdd,
+    });
 
-        if (error) throw error;
-        
-        if (data && data.success === false) {
-            throw new Error(data.message);
-        }
+    if (error) throw error;
 
-        return { data, error: null };
-    } catch (error) {
-        console.error('Error en addOrganizationAdmin:', error);
-        return { data: null, error };
+    if (data && data.success === false) {
+      throw new Error(data.message);
     }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error en addOrganizationAdmin:', error);
+    return { data: null, error };
+  }
 };
