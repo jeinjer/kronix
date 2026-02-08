@@ -3,49 +3,35 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const SuperAdminRoute = () => {
-  const { session, isAdmin, loading, perfilLoading } = useAuth();
+  // Usamos isSuperAdmin para coincidir con el AuthContext
+  const { session, isSuperAdmin, loading, perfilLoading } = useAuth();
 
-  // 1) Espera solo el boot de sesión.
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Cargando...</div>;
-  }
+  if (loading) return null; // El HomeLoader global se encarga
 
-  // 2) Si no hay sesión, fuera.
   if (!session) {
     return <Navigate to="/login" replace />;
   }
 
-  // 3) Si ya sabemos que es admin (cached o cargado), no bloquees por perfilLoading.
-  if (isAdmin) {
+  // Si ya sabemos que es admin (desde perfil o cache)
+  if (isSuperAdmin) {
     return <Outlet />;
   }
 
-  // 4) Si todavía se está resolviendo el perfil, espera antes de decidir.
-  if (perfilLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Cargando...</div>;
-  }
+  // Si todavía se está cargando el perfil, esperamos antes de rebotarlo
+  if (perfilLoading) return null;
 
-  // 5) Logueado pero no admin: al dashboard (evita sensación de “recarga”).
+  // Si no es admin, lo mandamos a su dashboard normal
   return <Navigate to="/dashboard" replace />;
 };
 
 export const DashboardRoute = () => {
-  // Ahora extraemos 'perfil' que SÍ existe en el contexto nuevo
-  const { session, perfil, loading, perfilLoading } = useAuth();
+  const { session, loading } = useAuth();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Cargando...</div>;
+  if (loading) return null;
 
   if (!session) return <Navigate to="/login" replace />;
 
-  // Si todavía estamos cargando perfil (o se está rehidratando), no redirijas.
-  if (perfilLoading && !perfil) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Cargando...</div>;
-  }
-
-  // Si tiene sesión pero no tiene barbería asignada (confirmado), va al onboarding
-  if (!perfil?.barberia_id) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
+  // En el nuevo sistema multi-org, no bloqueamos por 'barberia_id'
+  // ya que el usuario entra al Hub para elegir una.
   return <Outlet />;
 };

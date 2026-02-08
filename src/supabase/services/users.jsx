@@ -5,6 +5,30 @@ export const getCurrentUser = async () => {
     return { user, error };
 };
 
+export const updateUserProfile = async (updates) => {
+  try {
+    const { data, error } = await supabase.auth.updateUser({
+      data: updates
+    });
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+export const updatePassword = async (newPassword) => {
+  try {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 export const getUserRole = async (userId, orgId) => {
     try {
         const { data, error } = await supabase.rpc('get_user_role', {

@@ -4,57 +4,45 @@ import { clearCachedProfile, readCachedProfile, writeCachedProfile } from './pro
 import { loadUserProfile } from './profileService';
 import { DEFAULT_PROFILE_REFETCH_THROTTLE_MS, shouldRefetchProfile } from './refetchPolicy';
 
-const BOOT_MAX_SPINNER_MS = 600;
-
-const isSameInFlight = (inFlight, userId) =>
-  inFlight?.promise && inFlight?.userId === userId;
+const BOOT_MAX_SPINNER_MS = 1500; 
 
 export const useAuthController = () => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
-
   const [perfil, setPerfil] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false); 
   const [loading, setLoading] = useState(true);
   const [perfilLoading, setPerfilLoading] = useState(false);
 
   const perfilRef = useRef(null);
-  const isAdminRef = useRef(false);
+  const userRef = useRef(null);
+  const mountedRef = useRef(true);
+  const bootFinishedRef = useRef(false);
+  const inFlightRef = useRef({ userId: null, promise: null });
+  const lastProfileFetchRef = useRef({ at: 0, userId: null });
 
   useEffect(() => {
     perfilRef.current = perfil;
-    isAdminRef.current = isAdmin;
-  }, [perfil, isAdmin]);
-
-  const bootFinishedRef = useRef(false);
-  const mountedRef = useRef(true);
-  const inFlightRef = useRef({ userId: null, promise: null });
-  const lastProfileFetchRef = useRef({ at: 0, userId: null });
-  const throttleMsRef = useRef(DEFAULT_PROFILE_REFETCH_THROTTLE_MS);
+    userRef.current = user;
+  }, [perfil, user]);
 
   const finishBootOnce = () => {
     if (bootFinishedRef.current) return;
     bootFinishedRef.current = true;
-    if (mountedRef.current) setLoading(false);
+    setTimeout(() => {
+      if (mountedRef.current) setLoading(false);
+    }, 400); 
   };
 
   const setProfileState = (fullProfile) => {
     setPerfil(fullProfile);
-    setIsAdmin(!!fullProfile?.is_superadmin);
-  };
-
-  const clearAuthState = () => {
-    setSession(null);
-    setUser(null);
-    setProfileState(null);
-    setPerfilLoading(false);
+    setIsSuperAdmin(!!fullProfile?.is_superadmin);
   };
 
   const fetchUserData = async (userId) => {
     if (!userId) return null;
 
-    if (isSameInFlight(inFlightRef.current, userId)) {
+    if (inFlightRef.current.userId === userId && inFlightRef.current.promise) {
       return inFlightRef.current.promise;
     }
 
@@ -62,17 +50,13 @@ export const useAuthController = () => {
       setPerfilLoading(true);
       try {
         const fullProfile = await loadUserProfile(supabase, userId);
-
         if (!mountedRef.current) return fullProfile;
 
         setProfileState(fullProfile);
         writeCachedProfile(userId, fullProfile);
-
         return fullProfile;
       } catch (err) {
-        if (!mountedRef.current) return null;
-
-        setProfileState(null);
+        console.error("Error loading profile:", err);
         return null;
       } finally {
         if (mountedRef.current) setPerfilLoading(false);
@@ -80,34 +64,28 @@ export const useAuthController = () => {
     })();
 
     inFlightRef.current = { userId, promise };
-
-    promise.finally(() => {
-      const cur = inFlightRef.current;
-      if (cur.userId === userId && cur.promise === promise) {
-        inFlightRef.current = { userId: null, promise: null };
-      }
-    });
-
     return promise;
   };
 
   const applySession = async (currentSession, event) => {
     if (!mountedRef.current) return;
 
-    setSession(currentSession ?? null);
-    setUser(currentSession?.user ?? null);
+    const newUserId = currentSession?.user?.id ?? null;
+    const oldUserId = userRef.current?.id ?? null;
 
-    const userId = currentSession?.user?.id ?? null;
+    // Evita recargas si el usuario es el mismo (cambio de pestaña)
+    if (newUserId !== oldUserId) {
+      setSession(currentSession ?? null);
+      setUser(currentSession?.user ?? null);
+    }
 
-    finishBootOnce();
-
-    if (!userId) {
+    if (!newUserId) {
       setProfileState(null);
-      setPerfilLoading(false);
+      finishBootOnce();
       return;
     }
 
-    const cached = readCachedProfile(userId);
+    const cached = readCachedProfile(newUserId);
     if (cached && !perfilRef.current) {
       setProfileState(cached);
     }
@@ -117,45 +95,41 @@ export const useAuthController = () => {
 
     const doFetch = shouldRefetchProfile({
       event,
-      userId,
+      userId: newUserId,
       hasProfile,
       lastFetchAt,
-      throttleMs: throttleMsRef.current,
+      throttleMs: DEFAULT_PROFILE_REFETCH_THROTTLE_MS,
     });
 
-    if (!doFetch) return;
+    if (!doFetch) {
+      finishBootOnce();
+      return;
+    }
 
-    lastProfileFetchRef.current = { at: Date.now(), userId };
-    void fetchUserData(userId);
+    lastProfileFetchRef.current = { at: Date.now(), userId: newUserId };
+    await fetchUserData(newUserId);
+    finishBootOnce();
   };
 
   useEffect(() => {
     mountedRef.current = true;
-
     const bootSafety = setTimeout(() => {
       finishBootOnce();
     }, BOOT_MAX_SPINNER_MS);
-
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       void applySession(currentSession, event);
     });
 
-    (async () => {
-      try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        await applySession(initialSession, 'BOOT');
-      } catch {
-        finishBootOnce();
-      }
-    })();
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      applySession(initialSession, 'BOOT');
+    });
 
     return () => {
       mountedRef.current = false;
       clearTimeout(bootSafety);
       subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const logout = async () => {
@@ -164,20 +138,19 @@ export const useAuthController = () => {
       await supabase.auth.signOut();
       if (uid) clearCachedProfile(uid);
     } finally {
-      clearAuthState();
+      setSession(null);
+      setUser(null);
+      setProfileState(null);
     }
   };
 
-  return useMemo(
-    () => ({
-      session,
-      user,
-      perfil,
-      isAdmin,
-      loading,
-      perfilLoading,
-      logout,
-    }),
-    [session, user, perfil, isAdmin, loading, perfilLoading]
-  );
+  return useMemo(() => ({
+    session,
+    user,
+    perfil,
+    isSuperAdmin,
+    loading,
+    perfilLoading, // <-- Agregado al retorno
+    logout
+  }), [session, user, perfil, isSuperAdmin, loading, perfilLoading]);
 };
