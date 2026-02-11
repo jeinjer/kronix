@@ -7,8 +7,8 @@ export default function DemoSection() {
     <section id="demo" className="py-20 px-4 relative scroll-mt-24">
        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Tu centro de comando</h2>
-             <p className="text-slate-400">Así se ve el control total de tu negocio.</p>
+             <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">Tu centro de comando</h2>
+             <p className="text-slate-600 dark:text-slate-400">Así se ve el control total de tu negocio.</p>
           </div>
           
           <motion.div 

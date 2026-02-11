@@ -11,11 +11,11 @@ export default function SuperAdminDashboard() {
             <ShieldCheck size={32} />
         </div>
         <div>
-            <h1 className="text-3xl font-black text-white tracking-tighter">BACKOFFICE</h1>
-            <p className="text-slate-400">Gestión centralizada de suscripciones SaaS.</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">BACKOFFICE</h1>
+            <p className="text-slate-600 dark:text-slate-400">Gestión centralizada de suscripciones SaaS.</p>
         </div>
       </div>
-      <div className="p-12 border border-dashed border-white/10 rounded-2xl text-center text-slate-500">
+      <div className="p-12 border border-dashed border-slate-300 dark:border-white/10 rounded-2xl text-center text-slate-500">
         Acá va la tabla de suscripciones que diseñamos antes.
       </div>
     </div>

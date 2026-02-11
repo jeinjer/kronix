@@ -1,16 +1,11 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   /* Permitimos que el sistema determine la preferencia al inicio, la clase `.dark`
      (agregada por nuestro ThemeProvider) la sobrescribirá cuando el usuario la cambie. */
   :root {
     color-scheme: light;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color-scheme: dark;
-    }
   }
 
   /* Si la clase 'dark' está presente en <html>, forzamos color-scheme oscuro */
@@ -22,6 +17,14 @@
     @apply bg-slate-50 text-slate-900 transition-colors duration-500;
     margin: 0;
     min-height: 100vh;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed;
   }
 
   /* Estilos para body en modo oscuro */

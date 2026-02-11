@@ -28,10 +28,10 @@ export default function HeroSection() {
       <motion.div 
          initial={{ y: -20, opacity: 0 }}
          animate={{ y: 0, opacity: 1 }}
-         className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md"
+         className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-md transition-colors duration-500"
       >
          <Sparkles size={14} className="text-cyan-400" />
-         <span className="text-xs font-bold text-slate-300 tracking-wide uppercase">Software de Gestión v2.0</span>
+         <span className="text-xs font-bold text-slate-700 dark:text-slate-300 tracking-wide uppercase">Software de Gestión v2.0</span>
       </motion.div>
 
       {/* TITULO */}
@@ -41,13 +41,13 @@ export default function HeroSection() {
          transition={{ duration: 0.8, ease: "easeOut" }}
          className="mb-6"
       >
-        <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-linear-to-b from-white via-slate-200 to-slate-500 drop-shadow-[0_0_40px_rgba(34,211,238,0.2)]">
+        <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-linear-to-b from-slate-900 via-slate-700 to-slate-400 dark:from-white dark:via-slate-200 dark:to-slate-500 drop-shadow-[0_0_40px_rgba(34,211,238,0.2)] transition-colors duration-500">
           KRONIX
         </h1>
       </motion.div>
 
       {/* ANIMACIÓN TEXTO ELÁSTICO */}
-      <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 text-3xl md:text-6xl font-bold text-slate-400 mb-10 leading-tight w-full max-w-5xl">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 text-3xl md:text-6xl font-bold text-slate-600 dark:text-slate-400 mb-10 leading-tight w-full max-w-5xl transition-colors duration-500">
          <span className="shrink-0">Organizá</span>
          <motion.div 
            layout 
@@ -73,7 +73,7 @@ export default function HeroSection() {
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="text-lg text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed"
+        className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed transition-colors duration-500"
       >
         El tiempo bajo control. Agenda inteligente, bot de WhatsApp y métricas financieras reales. Rápido, fácil y sin vueltas.
       </motion.p>
@@ -89,7 +89,7 @@ export default function HeroSection() {
              Comenzar Gratis <ArrowRight className="group-hover:translate-x-1 transition-transform" />
            </span>
         </Link>
-        <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="px-8 py-4 rounded-full border border-slate-700 text-slate-300 font-bold hover:bg-slate-800 transition-colors">
+        <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="px-8 py-4 rounded-full border border-slate-400 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
           Ver Demo en Vivo
         </button>
       </motion.div>

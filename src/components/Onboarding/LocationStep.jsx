@@ -52,8 +52,8 @@ export default function LocationStep({ formData, setFormData }) {
       className="flex-1 flex flex-col gap-6"
     >
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Sede Operativa</h2>
-        <p className="text-slate-400">¿Dónde se encuentra ubicado tu negocio?</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sede Operativa</h2>
+        <p className="text-slate-600 dark:text-slate-400">¿Dónde se encuentra ubicado tu negocio?</p>
       </div>
 
       <div className="space-y-5">
@@ -67,7 +67,7 @@ export default function LocationStep({ formData, setFormData }) {
                         value={formData.provinceId || ''}
                         onChange={(e) => setFormData({...formData, provinceId: e.target.value, cityId: '', city: ''})}
                         disabled={loadingProvinces}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
+                        className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
                     >
                         <option value="">{loadingProvinces ? 'Cargando...' : 'Seleccionar...'}</option>
                         {provinces.map(p => (
@@ -86,7 +86,7 @@ export default function LocationStep({ formData, setFormData }) {
                         value={formData.cityId || ''}
                         onChange={handleCityChange}
                         disabled={!formData.provinceId}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
+                        className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
                     >
                         <option value="">Seleccionar...</option>
                         {cities.length > 0 ? (
@@ -110,7 +110,7 @@ export default function LocationStep({ formData, setFormData }) {
                     type="text" 
                     value={formData.street}
                     onChange={(e) => setFormData({...formData, street: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-700"
+                    className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500 dark:placeholder-slate-700"
                     placeholder="Ej. Av. San Martín"
                   />
               </div>
@@ -122,7 +122,7 @@ export default function LocationStep({ formData, setFormData }) {
                       type="text" 
                       value={formData.number}
                       onChange={(e) => setFormData({...formData, number: e.target.value})}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500"
+                      className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500"
                       placeholder="Ej. 1234"
                   />
               </div>

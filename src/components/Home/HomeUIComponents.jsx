@@ -4,32 +4,32 @@ import { Zap } from 'lucide-react';
 
 export const RealCalendarUI = () => {
   return (
-    <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl w-full max-w-5xl mx-auto font-sans relative z-10">
-      <div className="bg-slate-800/50 p-4 border-b border-white/5 flex flex-wrap justify-between items-center gap-4">
+    <div className="bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-2xl w-full max-w-5xl mx-auto font-sans relative z-10 transition-colors duration-500">
+      <div className="bg-slate-100 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-white/5 flex flex-wrap justify-between items-center gap-4 transition-colors duration-500">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-red-500/50" />
           <div className="w-3 h-3 rounded-full bg-amber-500/50" />
           <div className="w-3 h-3 rounded-full bg-green-500/50" />
         </div>
-        <div className="flex gap-2 bg-slate-950/50 p-1 rounded-lg border border-white/5">
+        <div className="flex gap-2 bg-slate-200 dark:bg-slate-950/50 p-1 rounded-lg border border-slate-300 dark:border-white/5 transition-colors duration-500">
            <div className="px-4 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Agenda</div>
-           <div className="px-4 py-1 text-slate-400 text-xs font-medium hover:text-white cursor-pointer">Métricas</div>
-           <div className="px-4 py-1 text-slate-400 text-xs font-medium hover:text-white cursor-pointer">Caja</div>
+           <div className="px-4 py-1 text-slate-700 dark:text-slate-400 text-xs font-medium hover:text-slate-900 dark:hover:text-white cursor-pointer">Métricas</div>
+           <div className="px-4 py-1 text-slate-700 dark:text-slate-400 text-xs font-medium hover:text-slate-900 dark:hover:text-white cursor-pointer">Caja</div>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-7 h-[400px] bg-slate-950/50 relative">
-         <div className="hidden md:block col-span-1 border-r border-white/5 p-4 space-y-12 text-right text-xs text-slate-500 font-mono">
+      <div className="grid grid-cols-1 md:grid-cols-7 h-[400px] bg-slate-100 dark:bg-slate-950/50 relative transition-colors duration-500">
+         <div className="hidden md:block col-span-1 border-r border-slate-200 dark:border-white/5 p-4 space-y-12 text-right text-xs text-slate-500 font-mono">
             <div>09:00</div>
             <div>11:00</div>
             <div>13:00</div>
             <div>15:00</div>
          </div>
          {[1,2,3,4,5,6].map((day) => (
-            <div key={day} className="col-span-1 border-r border-white/5 relative group hover:bg-white/[0.02] transition-colors">
-               <div className="h-full w-full absolute inset-0 pointer-events-none border-b border-dashed border-white/5 top-1/4"></div>
-               <div className="h-full w-full absolute inset-0 pointer-events-none border-b border-dashed border-white/5 top-2/4"></div>
-               <div className="h-full w-full absolute inset-0 pointer-events-none border-b border-dashed border-white/5 top-3/4"></div>
+            <div key={day} className="col-span-1 border-r border-slate-200 dark:border-white/5 relative group hover:bg-slate-100 dark:hover:bg-white/[0.02] transition-colors">
+               <div className="h-full w-full absolute inset-0 pointer-events-none border-b border-dashed border-slate-200 dark:border-white/5 top-1/4"></div>
+               <div className="h-full w-full absolute inset-0 pointer-events-none border-b border-dashed border-slate-200 dark:border-white/5 top-2/4"></div>
+               <div className="h-full w-full absolute inset-0 pointer-events-none border-b border-dashed border-slate-200 dark:border-white/5 top-3/4"></div>
                {day === 2 && (
                   <motion.div 
                      initial={{ scale: 0.8, opacity: 0 }}
@@ -61,20 +61,20 @@ export const RealCalendarUI = () => {
 
 export const BotChatUI = () => {
   return (
-    <div className="w-full max-w-sm mx-auto bg-slate-900 border border-slate-700/50 rounded-[2rem] overflow-hidden shadow-2xl relative">
-      <div className="bg-[#0b101b] p-4 flex items-center gap-3 border-b border-slate-800">
+    <div className="w-full max-w-sm mx-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/50 rounded-[2rem] overflow-hidden shadow-2xl relative transition-colors duration-500">
+      <div className="bg-slate-100 dark:bg-[#0b101b] p-4 flex items-center gap-3 border-b border-slate-300 dark:border-slate-800 transition-colors duration-500">
         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg">
             <Zap size={20} className="fill-white" />
         </div>
         <div>
-          <div className="text-white font-bold text-sm">Kronia</div>
+          <div className="text-slate-900 dark:text-white font-bold text-sm">Kronia</div>
           <div className="flex items-center gap-1">
              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
              <span className="text-slate-400 text-xs">En línea</span>
           </div>
         </div>
       </div>
-      <div className="h-[320px] bg-slate-950 p-4 space-y-4 flex flex-col relative overflow-hidden">
+      <div className="h-[320px] bg-slate-100 dark:bg-slate-950 p-4 space-y-4 flex flex-col relative overflow-hidden transition-colors duration-500">
          <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
          
          <motion.div 

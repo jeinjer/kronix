@@ -23,36 +23,46 @@ import UserPanel from './pages/UserPanel/UserPanel';
 import Onboarding from './pages/Onboarding/Onboarding';
 
 import NotFoundPage from './pages/NotFound/404';
+import { isSuperAdminUser } from './utils/superAdmin';
 
 function AppContent() {
-  const { user, loading, isSuperAdmin } = useAuth();
+  const { user, perfil, loading, isSuperAdmin, perfilLoading } = useAuth();
+  const isSuperAdminEffective = Boolean(
+    isSuperAdmin || isSuperAdminUser({ user, profile: perfil })
+  );
   
   if (loading) {
     return <HomeLoader />;
   }
 
-  const getRedirectPath = () => isSuperAdmin ? "/admin" : "/dashboard";
+  const getRedirectPath = () => isSuperAdminEffective ? "/admin" : "/dashboard";
+
+  const renderPublicEntry = (fallbackElement) => {
+    if (!user) return fallbackElement;
+    if (perfilLoading) return <HomeLoader />;
+    return <Navigate to={getRedirectPath()} replace />;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#050507] text-slate-900 dark:text-gray-200 font-sans flex flex-col transition-colors duration-500">
       <ScrollToTop />
       <Header /> 
       
-      <main className="pt-24 min-h-screen bg-slate-950">
+      <main className="pt-24 min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-500">
         <div className="flex-1">
           <Routes>
             <Route 
               path="/" 
-              element={user ? <Navigate to={getRedirectPath()} replace /> : <Home />} 
+              element={renderPublicEntry(<Home />)} 
             />
             
             <Route 
               path="/login" 
-              element={user ? <Navigate to={getRedirectPath()} replace /> : <AuthPortal />} 
+              element={renderPublicEntry(<AuthPortal />)} 
             />
             <Route 
               path="/registro" 
-              element={user ? <Navigate to={getRedirectPath()} replace /> : <AuthPortal />} 
+              element={renderPublicEntry(<AuthPortal />)} 
             />
             
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -63,8 +73,8 @@ function AppContent() {
             </Route>
 
             <Route element={<DashboardRoute />}>
-              <Route path="/dashboard" element={isSuperAdmin ? <Navigate to="/admin" replace /> : <UserPanel />} />
-              <Route path="/dashboard/:slug" element={isSuperAdmin ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
+              <Route path="/dashboard" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <UserPanel />} />
+              <Route path="/dashboard/:slug" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
             </Route>
 
             <Route path="/welcome" element={<Welcome />} />
@@ -89,7 +99,8 @@ export default function App() {
            <Toaster 
              richColors 
              position="bottom-right" 
-             closeButton
+             closeButton={false}
+             duration={3000}
            />
         </Router>
       </AuthProvider>

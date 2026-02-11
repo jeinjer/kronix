@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -8,6 +8,7 @@ import {
   EyeOff,
   Check,
   X,
+  ArrowLeft,
   ArrowRight,
   Layers,
   Zap
@@ -15,13 +16,22 @@ import {
 import { supabase } from '@/supabase/supabaseClient';
 import { toast } from 'sonner';
 import { getUserOrganizations } from '@/supabase/services/organizations';
+import { getUserRole } from '@/supabase/services/users';
+import HomeLoader from '@/components/Loaders/HomeLoader';
+import { loadUserProfile } from '@/context/auth/profileService';
+import { isSuperAdminUser } from '@/utils/superAdmin';
 
 export default function AuthPortal() {
+  const REGISTER_RETRY_DELAY_MS = 3000;
+
   const location = useLocation();
   const navigate = useNavigate();
 
   const [isLogin, setIsLogin] = useState(location.pathname !== '/registro');
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const [registerRetryBlocked, setRegisterRetryBlocked] = useState(false);
+  const registerRetryTimerRef = useRef(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,12 +58,46 @@ export default function AuthPortal() {
   ];
 
   const allRequirementsMet = validations.every(v => v.valid);
+  const isRegisterEmailValid = /^[^\s@]+@[^\s@]+\.com$/i.test(email.trim());
   const isFormValid = isLogin
-    ? email && password
-    : email && allRequirementsMet;
+    ? isRegisterEmailValid && password
+    : isRegisterEmailValid && allRequirementsMet && !registerRetryBlocked;
+
+  useEffect(() => {
+    return () => {
+      if (registerRetryTimerRef.current) {
+        clearTimeout(registerRetryTimerRef.current);
+      }
+    };
+  }, []);
+
+  const getAuthErrorMessage = (err, loginMode) => {
+    const rawMessage = String(err?.message || '').toLowerCase();
+    const rawCode = String(err?.code || '').toLowerCase();
+
+    if (loginMode) {
+      if (
+        rawCode === 'email_not_confirmed' ||
+        rawMessage.includes('email not confirmed')
+      ) {
+        return 'Tu email todavía no está verificado. Revisá tu bandeja y confirmá la cuenta.';
+      }
+
+      if (
+        rawCode === 'invalid_credentials' ||
+        rawMessage.includes('invalid login credentials') ||
+        rawMessage.includes('invalid credentials')
+      ) {
+        return 'Email o contraseña incorrectos.';
+      }
+    }
+
+    return err?.message || 'Error de autenticación';
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (!isLogin && registerRetryBlocked) return;
     setLoading(true);
 
     try {
@@ -62,11 +106,30 @@ export default function AuthPortal() {
           await supabase.auth.signInWithPassword({ email, password });
 
         if (error) throw error;
+        setRedirecting(true);
 
         toast.success('¡Bienvenido!');
 
-        const { data: orgs } = await getUserOrganizations(authData.user.id);
-        navigate(orgs && orgs.length > 0 ? '/dashboard' : '/welcome');
+        const [profileData, { data: orgs }] = await Promise.all([
+          loadUserProfile(supabase, authData.user.id),
+          getUserOrganizations(authData.user.id)
+        ]);
+        const { role: resolvedRole } = await getUserRole(
+          authData.user.id,
+          profileData?.barberia_id ?? null
+        );
+
+        const userIsAdmin = isSuperAdminUser({
+          user: authData?.user,
+          profile: { ...profileData, user_role: resolvedRole ?? profileData?.user_role }
+        });
+
+        if (userIsAdmin) {
+          navigate('/admin', { replace: true });
+          return;
+        }
+
+        navigate(orgs && orgs.length > 0 ? '/dashboard' : '/welcome', { replace: true });
       } else {
         const { data: invitacion } = await supabase
           .from('saas_invitations')
@@ -90,13 +153,28 @@ export default function AuthPortal() {
         toggleMode();
       }
     } catch (err) {
-      toast.error(err.message || 'Error de autenticación');
+      setRedirecting(false);
+      if (!isLogin) {
+        setRegisterRetryBlocked(true);
+        if (registerRetryTimerRef.current) {
+          clearTimeout(registerRetryTimerRef.current);
+        }
+        registerRetryTimerRef.current = setTimeout(() => {
+          setRegisterRetryBlocked(false);
+          registerRetryTimerRef.current = null;
+        }, REGISTER_RETRY_DELAY_MS);
+      }
+      toast.error(getAuthErrorMessage(err, isLogin));
     } finally {
       setLoading(false);
     }
   };
 
   const spring = { type: 'spring', stiffness: 150, damping: 20 };
+
+  if (redirecting) {
+    return <HomeLoader />;
+  }
 
   return (
     <div className="flex items-center justify-center py-10 px-4">
@@ -120,6 +198,7 @@ export default function AuthPortal() {
             onSubmit={handleAuth}
             loading={loading}
             valid={isFormValid}
+            registerRetryBlocked={registerRetryBlocked}
           />
         </motion.div>
 
@@ -146,6 +225,7 @@ export default function AuthPortal() {
             onSubmit={handleAuth}
             loading={loading}
             valid={isFormValid}
+            registerRetryBlocked={registerRetryBlocked}
           />
         </motion.div>
 
@@ -170,10 +250,19 @@ export default function AuthPortal() {
             </p>
             <button
               onClick={toggleMode}
-              className="px-10 py-4 bg-white text-indigo-900 font-black rounded-full flex items-center gap-2"
+              className="px-10 py-4 bg-white text-indigo-900 font-black rounded-full flex items-center gap-2 cursor-pointer"
             >
-              {isLogin ? 'ACTIVAR MEMBRESÍA' : 'INICIAR SESIÓN'}
-              <ArrowRight size={20} />
+              {isLogin ? (
+                <>
+                  ACTIVAR MEMBRESÍA
+                  <ArrowRight size={20} />
+                </>
+              ) : (
+                <>
+                  <ArrowLeft size={20} />
+                  INICIAR SESIÓN
+                </>
+              )}
             </button>
           </div>
         </motion.div>
@@ -208,17 +297,31 @@ function FormContent({
   validations = [],
   onSubmit,
   loading,
-  valid
+  valid,
+  registerRetryBlocked = false
 }) {
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <Input icon={<Mail />} value={email} onChange={setEmail} type="email" />
+    <form onSubmit={onSubmit} className="space-y-4" autoComplete="on">
+      <Input
+        icon={<Mail />}
+        value={email}
+        onChange={setEmail}
+        type="email"
+        placeholder="tu@email.com"
+        name={isLogin ? 'username' : 'email'}
+        id={isLogin ? 'login-email' : 'register-email'}
+        autoComplete={isLogin ? 'username' : 'email'}
+      />
       <Input
         icon={<Lock />}
         value={password}
         onChange={setPassword}
         type={showPass ? 'text' : 'password'}
         toggle={() => setShowPass(!showPass)}
+        placeholder="*****"
+        name={isLogin ? 'current-password' : 'new-password'}
+        id={isLogin ? 'login-password' : 'register-password'}
+        autoComplete={isLogin ? 'current-password' : 'new-password'}
       />
 
       {!isLogin && password.length > 0 && (
@@ -239,34 +342,59 @@ function FormContent({
           onChange={setConfirmPassword}
           type={showConfirmPass ? 'text' : 'password'}
           toggle={() => setShowConfirmPass(!showConfirmPass)}
+          placeholder="*****"
+          name="confirm-password"
+          id="register-confirm-password"
+          autoComplete="new-password"
         />
       )}
 
       <button
         disabled={!valid || loading}
-        className="w-full py-4 bg-cyan-600 text-white font-black rounded-xl disabled:opacity-30"
+        className="w-full py-4 bg-cyan-600 text-white font-black rounded-xl disabled:opacity-30 cursor-pointer"
       >
-        {loading ? 'PROCESANDO…' : isLogin ? 'INGRESAR' : 'REGISTRARME'}
+        {loading ? 'PROCESANDO…' : isLogin ? 'INGRESAR' : registerRetryBlocked ? 'ESPERÁ...' : 'REGISTRARME'}
       </button>
     </form>
   );
 }
 
-function Input({ icon, value, onChange, type, toggle }) {
+function Input({
+  icon,
+  value,
+  onChange,
+  type,
+  toggle,
+  placeholder,
+  name,
+  id,
+  autoComplete
+}) {
   return (
     <div className="relative">
       <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-60">{icon}</span>
       <input
+        id={id}
+        name={name}
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full pl-12 pr-12 py-4 bg-white/5 rounded-xl outline-none"
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="w-full pl-12 pr-12 py-4 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl outline-none focus:border-cyan-500/60"
       />
       {toggle && (
-        <button type="button" onClick={toggle} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-60">
-          <Eye size={18} />
+        <button
+          type="button"
+          onClick={toggle}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer ${
+            type === 'text' ? 'text-cyan-400' : 'opacity-60'
+          }`}
+        >
+          {type === 'text' ? <Eye size={18} /> : <EyeOff size={18} />}
         </button>
       )}
     </div>
   );
 }
+ 

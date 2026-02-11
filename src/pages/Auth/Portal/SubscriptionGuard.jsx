@@ -68,15 +68,15 @@ export default function SubscriptionGuard({ children, user }) {
 
   if (!isValid) {
     return (
-      <div className="h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
-        <div className="max-w-md bg-white p-8 rounded-3xl">
+      <div className="h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-6 text-center transition-colors duration-500">
+        <div className="max-w-md bg-white dark:bg-slate-950 p-8 rounded-3xl border border-slate-200 dark:border-white/10 transition-colors duration-500">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">Acceso Restringido</h2>
           <p className="text-slate-600 mb-6">
             Tu suscripción no está vigente. Contactate con administración para regularizar el servicio.
           </p>
           <button
             onClick={() => supabase.auth.signOut()}
-            className="bg-slate-900 text-white px-6 py-2 rounded-xl"
+            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-2 rounded-xl"
           >
             Cerrar Sesión
           </button>
