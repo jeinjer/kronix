@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 export default function ModernLoader() {
   return (
-    <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-[#050507]">
+    <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-slate-100 dark:bg-[#050507] transition-colors duration-500">
       <div className="relative flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
@@ -40,7 +40,7 @@ export default function ModernLoader() {
         transition={{ delay: 0.5 }}
         className="mt-8 flex flex-col items-center gap-2"
       >
-        <h2 className="text-white font-bold tracking-[0.3em] text-xs uppercase">Iniciando Kronix</h2>
+        <h2 className="text-slate-900 dark:text-white font-bold tracking-[0.3em] text-xs uppercase">Iniciando Kronix</h2>
         <div className="flex gap-1">
           {[0, 1, 2].map((i) => (
             <motion.div

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
@@ -19,12 +19,14 @@ import {
 import {
     getCurrentUser
 } from '@/supabase/services/users';
+import { supabase } from '@/supabase/supabaseClient';
+import { loadUserProfile } from '@/context/auth/profileService';
 
 // Componente de fondo animado
 const BackgroundEffects = () => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-    <div className="absolute inset-0 bg-slate-950"></div>
-    <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
+    <div className="absolute inset-0 bg-slate-100 dark:bg-slate-950 transition-colors duration-500"></div>
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,#cbd5e1_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e1_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full" />
   </div>
 );
@@ -33,7 +35,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
-  // Estado para controlar la verificación inicial de seguridad
+  // Estado para controlar la verificaciÃ³n inicial de seguridad
   const [checkingAuth, setCheckingAuth] = useState(true);
   
   const navigate = useNavigate();
@@ -45,14 +47,14 @@ export default function Onboarding() {
     province: '', provinceId: '', city: '', cityId: '', street: '', number: '', industry: null
   });
 
-  // --- 1. LÓGICA DE PROTECCIÓN (GUARD) ---
+  // --- 1. LÃ“GICA DE PROTECCIÃ“N (GUARD) ---
   useEffect(() => {
     const checkAccess = async () => {
       // A. Backdoor para desarrollo (?dev_mode=true en la URL)
       // Esto te permite entrar a probar aunque ya tengas empresa creada.
       const isDevMode = searchParams.get('dev_mode') === 'true';
       if (isDevMode) {
-          console.warn("⚠️ MODO DESARROLLO ACTIVO: Saltando verificación de organización.");
+          console.warn("âš ï¸ MODO DESARROLLO ACTIVO: Saltando verificaciÃ³n de organizaciÃ³n.");
           setCheckingAuth(false);
           return;
       }
@@ -60,15 +62,28 @@ export default function Onboarding() {
       // B. Obtener usuario actual
       const { user } = await getCurrentUser();
       if (!user) {
-          // Si no está logueado, al login
+          // Si no estÃ¡ logueado, al login
           navigate('/login');
+          return;
+      }
+
+      const profile = await loadUserProfile(supabase, user.id);
+      const profileFullName = String(
+        profile?.full_name || user?.user_metadata?.full_name || ''
+      ).trim();
+      const profilePhone = String(
+        profile?.phone || user?.user_metadata?.phone || ''
+      ).trim();
+
+      if (!profileFullName || !profilePhone) {
+          navigate('/welcome');
           return;
       }
 
       // C. Consultar si ya tiene organizaciones
       const { data: orgs } = await getUserOrganizations(user.id);
       
-      // D. Decisión de redirección
+      // D. DecisiÃ³n de redirecciÃ³n
       if (orgs && orgs.length > 0) {
           // Ya tiene negocio -> Dashboard
           console.log("Usuario con organizaciones detectadas. Redirigiendo...");
@@ -85,14 +100,14 @@ export default function Onboarding() {
 
   // --- 2. HANDLERS DEL FORMULARIO ---
 
-  // Generador automático de URL (Slug)
+  // Generador automÃ¡tico de URL (Slug)
   const handleNameChange = (e) => {
     const name = e.target.value;
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     setFormData(prev => ({ ...prev, name, slug }));
   };
 
-  // Navegación entre pasos
+  // NavegaciÃ³n entre pasos
   const handleNext = () => {
     if (step === 1 && formData.name && formData.slug && formData.logoFile) setStep(2);
     else if (step === 2 && formData.provinceId && formData.cityId && formData.street) setStep(3);
@@ -107,9 +122,9 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
-        // A. Validar sesión nuevamente
+        // A. Validar sesiÃ³n nuevamente
         const { user, error: userError } = await getCurrentUser();
-        if (userError || !user) throw new Error("Sesión expirada. Inicia sesión nuevamente.");
+        if (userError || !user) throw new Error("SesiÃ³n expirada. Inicia sesiÃ³n nuevamente.");
 
         // B. Subir Logo (Solo si hay archivo)
         let logoUrl = null;
@@ -132,28 +147,28 @@ export default function Onboarding() {
             number: formData.number
         };
 
-        // D. Llamada a la Función SQL (RPC)
+        // D. Llamada a la FunciÃ³n SQL (RPC)
         const { data: responseData, error: rpcError } = await createOrganization(orgPayload);
         
         if (rpcError) throw new Error(rpcError.message);
         
-        console.log("Organización creada exitosamente:", responseData);
+        console.log("OrganizaciÃ³n creada exitosamente:", responseData);
         
-        // E. Redirección final
+        // E. RedirecciÃ³n final
         setTimeout(() => { 
             setLoading(false); 
             navigate('/dashboard'); 
         }, 1500);
 
     } catch (error) {
-        console.error("Error crítico en onboarding:", error);
+        console.error("Error crÃ­tico en onboarding:", error);
         setLoading(false);
-        alert(error.message || "Ocurrió un error inesperado creando tu cuenta.");
+        alert(error.message || "OcurriÃ³ un error inesperado creando tu cuenta.");
     }
   };
 
 
-  // --- 4. VALIDACIÓN VISUAL ---
+  // --- 4. VALIDACIÃ“N VISUAL ---
   const isStepValid = () => {
     if (step === 1) return formData.name.length > 2 && formData.slug.length > 2 && formData.logoFile;
     if (step === 2) return formData.provinceId && formData.cityId && formData.street.length > 2;
@@ -167,15 +182,15 @@ export default function Onboarding() {
   // Si estamos verificando si tiene empresas, mostramos un spinner de carga completa
   if (checkingAuth) {
       return (
-          <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center font-sans">
+          <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center font-sans transition-colors duration-500">
               <Loader2 size={40} className="text-cyan-500 animate-spin mb-4" />
-              <p className="text-slate-400 text-sm animate-pulse">Verificando cuenta...</p>
+              <p className="text-slate-600 dark:text-slate-400 text-sm animate-pulse">Verificando cuenta...</p>
           </div>
       );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100 relative">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-900 dark:text-slate-100 relative transition-colors duration-500">
       <BackgroundEffects />
 
       <div className="w-full max-w-2xl relative z-10">
@@ -184,23 +199,23 @@ export default function Onboarding() {
         <div className="flex justify-between items-center mb-8 px-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 flex items-center justify-center">
-                 <img src="/kronix.svg" alt="Kronix" className="w-9 h-9 object-contain invert drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                 <img src="/kronix.svg" alt="Kronix" className="w-9 h-9 object-contain dark:invert drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">Alta de Sede</h1>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Alta de Sede</h1>
               <p className="text-xs text-slate-400 uppercase tracking-widest">Setup Inicial</p>
             </div>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-sm text-slate-400">Paso <span className="text-white font-bold">{step}</span> de 3</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Paso <span className="text-slate-900 dark:text-white font-bold">{step}</span> de 3</p>
           </div>
         </div>
 
         {/* CONTENEDOR PRINCIPAL */}
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl relative overflow-visible">
+        <div className="bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl relative overflow-visible transition-colors duration-500">
           
           {/* BARRA DE PROGRESO */}
-          <div className="h-1 bg-slate-800 w-full rounded-t-2xl overflow-hidden">
+          <div className="h-1 bg-slate-200 dark:bg-slate-800 w-full rounded-t-2xl overflow-hidden">
             <motion.div 
               className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
               initial={{ width: "0%" }}
@@ -238,10 +253,10 @@ export default function Onboarding() {
 
             </AnimatePresence>
 
-            {/* BARRA DE NAVEGACIÓN INFERIOR */}
-            <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-6">
+            {/* BARRA DE NAVEGACIÃ“N INFERIOR */}
+            <div className="mt-8 flex items-center justify-between border-t border-slate-200 dark:border-white/5 pt-6">
               {step > 1 ? (
-                <button onClick={handleBack} className="text-slate-400 hover:text-white text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={handleBack} className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/5 transition-colors">
                   <ArrowLeft size={16} /> Volver
                 </button>
               ) : ( <div></div> )}
@@ -249,7 +264,7 @@ export default function Onboarding() {
               <button 
                 onClick={step === 3 ? handleSubmit : handleNext}
                 disabled={!isStepValid()}
-                className={`flex items-center gap-2 px-8 py-3 rounded-full font-bold text-sm transition-all duration-300 ${isStepValid() ? 'bg-white text-slate-950 hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)] cursor-pointer' : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'}`}
+                className={`flex items-center gap-2 px-8 py-3 rounded-full font-bold text-sm transition-all duration-300 ${isStepValid() ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)] cursor-pointer' : 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'}`}
               >
                 {step === 3 ? 'Lanzar Plataforma' : 'Siguiente'} 
                 {step !== 3 && <ArrowRight size={16} />}
@@ -262,3 +277,4 @@ export default function Onboarding() {
     </div>
   );
 }
+

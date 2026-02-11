@@ -1,10 +1,14 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { isSuperAdminUser } from './superAdmin';
 
 export const SuperAdminRoute = () => {
   // Usamos isSuperAdmin para coincidir con el AuthContext
-  const { session, isSuperAdmin, loading, perfilLoading } = useAuth();
+  const { session, user, perfil, isSuperAdmin, loading, perfilLoading } = useAuth();
+  const isSuperAdminEffective = Boolean(
+    isSuperAdmin || isSuperAdminUser({ user, profile: perfil })
+  );
 
   if (loading) return null; // El HomeLoader global se encarga
 
@@ -13,7 +17,7 @@ export const SuperAdminRoute = () => {
   }
 
   // Si ya sabemos que es admin (desde perfil o cache)
-  if (isSuperAdmin) {
+  if (isSuperAdminEffective) {
     return <Outlet />;
   }
 

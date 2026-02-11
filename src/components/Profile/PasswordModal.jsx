@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Lock, Loader2, X, CheckCircle2, Circle } from 'lucide-react';
+import { Lock, Loader2, X, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
 import { updatePassword } from '@/supabase/services/users';
 
 export default function PasswordModal({ isOpen, onClose }) {
-  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, watch, reset } = useForm();
   const [loading, setLoading] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
   
   const password = watch('password', '');
   const confirmPassword = watch('confirmPassword', '');
 
   const checks = [
     { label: 'Mínimo 6 caracteres', valid: password.length >= 6 },
+    { label: 'Al menos 1 mayúscula', valid: /[A-Z]/.test(password) },
+    { label: 'Al menos 1 número', valid: /[0-9]/.test(password) },
     { label: 'Coinciden', valid: password === confirmPassword && password !== '' }
   ];
 
@@ -34,13 +37,13 @@ export default function PasswordModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-md bg-[#13131a] border border-white/10 rounded-2xl p-8 shadow-2xl relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+      <div className="w-full max-w-md bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-2xl relative transition-colors duration-500">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
           <X size={20} />
         </button>
 
-        <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tight">Cambiar Contraseña</h2>
-        <p className="text-slate-400 text-sm mb-6">Ingresá tu nueva clave de acceso.</p>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tight">Cambiar Contraseña</h2>
+        <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">Ingresá tu nueva clave de acceso.</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1">
@@ -48,11 +51,23 @@ export default function PasswordModal({ isOpen, onClose }) {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input 
-                {...register("password", { required: true, minLength: 6 })} 
-                type="password" 
-                placeholder="••••••••" 
-                className="w-full pl-10 pr-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-white outline-none focus:border-cyan-500/50 transition-all" 
+                {...register('password', {
+                  required: true,
+                  minLength: 6,
+                  validate: value => /[A-Z]/.test(value) && /[0-9]/.test(value)
+                })}
+                type={showPasswords ? 'text' : 'password'} 
+                placeholder="*********" 
+                className="w-full pl-10 pr-11 py-3 bg-slate-50 dark:bg-[#0a0a0f] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white outline-none focus:border-cyan-500/50 transition-all" 
               />
+              <button
+                type="button"
+                onClick={() => setShowPasswords(prev => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                aria-label={showPasswords ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPasswords ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
             </div>
           </div>
 
@@ -64,14 +79,22 @@ export default function PasswordModal({ isOpen, onClose }) {
                 {...register("confirmPassword", { 
                   validate: value => value === password || 'Las contraseñas no coinciden'
                 })} 
-                type="password" 
-                placeholder="••••••••" 
-                className="w-full pl-10 pr-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-white outline-none focus:border-cyan-500/50 transition-all" 
+                type={showPasswords ? 'text' : 'password'} 
+                placeholder="*********" 
+                className="w-full pl-10 pr-11 py-3 bg-slate-50 dark:bg-[#0a0a0f] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white outline-none focus:border-cyan-500/50 transition-all" 
               />
+              <button
+                type="button"
+                onClick={() => setShowPasswords(prev => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                aria-label={showPasswords ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
+              >
+                {showPasswords ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
             </div>
           </div>
 
-          <div className="bg-[#0a0a0f] p-4 rounded-xl space-y-2">
+          <div className="bg-slate-100 dark:bg-[#0a0a0f] p-4 rounded-xl space-y-2 transition-colors duration-500">
             {checks.map((check, i) => (
               <div key={i} className={`flex items-center gap-2 text-xs font-medium ${check.valid ? 'text-cyan-400' : 'text-slate-600'}`}>
                 {check.valid ? <CheckCircle2 size={14} /> : <Circle size={14} />}
@@ -84,10 +107,11 @@ export default function PasswordModal({ isOpen, onClose }) {
             disabled={loading || !checks.every(c => c.valid)} 
             className="w-full py-3 bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
           >
-            {loading ? <Loader2 className="animate-spin" /> : 'Actualizar Contraseña'}
+            {loading ? <Loader2 className="animate-spin" /> : 'Confirmar'}
           </button>
         </form>
       </div>
     </div>
   );
 }
+

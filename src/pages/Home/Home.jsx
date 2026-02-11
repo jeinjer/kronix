@@ -8,7 +8,7 @@ import CTASection from '../../components/Home/CTASection';
 
 const UltimateLanding = () => {
   return (
-    <div className="bg-slate-950 min-h-screen text-slate-100 font-sans overflow-x-hidden selection:bg-cyan-500/30 scroll-smooth">
+    <div className="bg-slate-100 dark:bg-slate-950 min-h-screen text-slate-900 dark:text-slate-100 font-sans overflow-x-hidden selection:bg-cyan-500/30 scroll-smooth transition-colors duration-500">
       <FloatingParticles />
       <HeroSection />
       <DemoSection />

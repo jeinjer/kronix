@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/supabase/supabaseClient';
+import { getUserRole } from '@/supabase/services/users';
 import { clearCachedProfile, readCachedProfile, writeCachedProfile } from './profileCache';
 import { loadUserProfile } from './profileService';
 import { DEFAULT_PROFILE_REFETCH_THROTTLE_MS, shouldRefetchProfile } from './refetchPolicy';
+import { isSuperAdminUser } from '@/utils/superAdmin';
 
 const BOOT_MAX_SPINNER_MS = 1500; 
 
@@ -36,7 +38,12 @@ export const useAuthController = () => {
 
   const setProfileState = (fullProfile) => {
     setPerfil(fullProfile);
-    setIsSuperAdmin(!!fullProfile?.is_superadmin);
+    setIsSuperAdmin(
+      isSuperAdminUser({
+        user: userRef.current,
+        profile: fullProfile
+      })
+    );
   };
 
   const fetchUserData = async (userId) => {
@@ -50,16 +57,22 @@ export const useAuthController = () => {
       setPerfilLoading(true);
       try {
         const fullProfile = await loadUserProfile(supabase, userId);
+        const { role: resolvedRole } = await getUserRole(userId, fullProfile?.barberia_id ?? null);
+        const normalizedProfile = { ...fullProfile, user_role: resolvedRole ?? fullProfile?.user_role };
         if (!mountedRef.current) return fullProfile;
 
-        setProfileState(fullProfile);
-        writeCachedProfile(userId, fullProfile);
-        return fullProfile;
+        setProfileState(normalizedProfile);
+        writeCachedProfile(userId, normalizedProfile);
+        return normalizedProfile;
       } catch (err) {
         console.error("Error loading profile:", err);
         return null;
       } finally {
         if (mountedRef.current) setPerfilLoading(false);
+        // Permite refetch real en futuros eventos (login/update), evitando datos stale.
+        if (inFlightRef.current.userId === userId) {
+          inFlightRef.current = { userId: null, promise: null };
+        }
       }
     })();
 
@@ -74,9 +87,15 @@ export const useAuthController = () => {
     const oldUserId = userRef.current?.id ?? null;
 
     // Evita recargas si el usuario es el mismo (cambio de pestaña)
-    if (newUserId !== oldUserId) {
+    const shouldSyncUserState =
+      newUserId !== oldUserId || event === 'USER_UPDATED';
+
+    if (shouldSyncUserState) {
       setSession(currentSession ?? null);
       setUser(currentSession?.user ?? null);
+      if (isSuperAdminUser({ user: currentSession?.user })) {
+        setIsSuperAdmin(true);
+      }
     }
 
     if (!newUserId) {
@@ -93,13 +112,28 @@ export const useAuthController = () => {
     const hasProfile = Boolean(perfilRef.current || cached);
     const lastFetchAt = lastProfileFetchRef.current.at || 0;
 
-    const doFetch = shouldRefetchProfile({
+    // Evita refetch/re-render al volver de pestaña cuando Supabase re-emite SIGNED_IN.
+    if (event === 'SIGNED_IN' && newUserId === oldUserId && hasProfile) {
+      finishBootOnce();
+      return;
+    }
+
+    let doFetch = shouldRefetchProfile({
       event,
       userId: newUserId,
       hasProfile,
       lastFetchAt,
       throttleMs: DEFAULT_PROFILE_REFETCH_THROTTLE_MS,
     });
+
+    // Si aÃºn no podemos determinar si es superadmin, forzamos un fetch en eventos sensibles.
+    const resolvedSuperAdmin = isSuperAdminUser({
+      user: currentSession?.user,
+      profile: perfilRef.current || cached
+    });
+    if (!resolvedSuperAdmin && ['BOOT', 'INITIAL_SESSION'].includes(event)) {
+      doFetch = true;
+    }
 
     if (!doFetch) {
       finishBootOnce();
@@ -138,10 +172,17 @@ export const useAuthController = () => {
       await supabase.auth.signOut();
       if (uid) clearCachedProfile(uid);
     } finally {
+      inFlightRef.current = { userId: null, promise: null };
+      lastProfileFetchRef.current = { at: 0, userId: null };
       setSession(null);
       setUser(null);
       setProfileState(null);
     }
+  };
+
+  const refreshAuthData = async () => {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    await applySession(currentSession, 'USER_UPDATED');
   };
 
   return useMemo(() => ({
@@ -151,6 +192,7 @@ export const useAuthController = () => {
     isSuperAdmin,
     loading,
     perfilLoading, // <-- Agregado al retorno
-    logout
+    logout,
+    refreshAuthData
   }), [session, user, perfil, isSuperAdmin, loading, perfilLoading]);
 };

@@ -13,17 +13,17 @@ export default function SuperAdminTable({ suscripciones, onUpdateEstado, onRegis
   };
 
   return (
-    <div className="w-full overflow-hidden bg-white/5 backdrop-blur-md border border-white/10 rounded-[2rem] shadow-2xl">
+    <div className="w-full overflow-hidden bg-white dark:bg-white/5 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl transition-colors duration-500">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-white/[0.02] border-b border-white/10">
+          <tr className="bg-slate-100 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/10">
             <th className="p-6 text-xs font-black uppercase tracking-widest text-slate-500">Cliente & Proyecto</th>
             <th className="p-6 text-xs font-black uppercase tracking-widest text-slate-500">Estado Suscripción</th>
             <th className="p-6 text-xs font-black uppercase tracking-widest text-slate-500">Próximo Vencimiento</th>
             <th className="p-6 text-xs font-black uppercase tracking-widest text-slate-500 text-right">Acciones de Gestión</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-slate-200 dark:divide-white/5">
           <AnimatePresence>
             {suscripciones.map((s) => (
               <motion.tr 
@@ -31,12 +31,12 @@ export default function SuperAdminTable({ suscripciones, onUpdateEstado, onRegis
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="group hover:bg-white/[0.02] transition-all duration-300"
+                className="group hover:bg-slate-100 dark:hover:bg-white/[0.02] transition-all duration-300"
               >
                 {/* Cliente & Proyecto */}
                 <td className="p-6">
                   <div className="flex flex-col">
-                    <span className="text-white font-bold text-lg tracking-tight">{s.email}</span>
+                    <span className="text-slate-900 dark:text-white font-bold text-lg tracking-tight">{s.email}</span>
                     <span className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-black px-2 py-0.5 rounded bg-indigo-600 text-white uppercase tracking-tighter">
                         {s.proyecto_id || 'BARBER-V1'}
@@ -55,7 +55,7 @@ export default function SuperAdminTable({ suscripciones, onUpdateEstado, onRegis
 
                 {/* Vencimiento */}
                 <td className="p-6">
-                  <div className="flex items-center gap-2 text-slate-300 font-mono text-sm">
+                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-mono text-sm">
                     <Clock size={14} className="text-slate-500" />
                     {s.fecha_limite_pago ? new Date(s.fecha_limite_pago).toLocaleDateString() : 'N/A'}
                   </div>
@@ -79,7 +79,7 @@ export default function SuperAdminTable({ suscripciones, onUpdateEstado, onRegis
                       <Ban size={18} />
                     </button>
                     <button 
-                      className="p-3 bg-white/5 text-slate-400 rounded-xl hover:bg-white/10 transition-all"
+                      className="p-3 bg-slate-100 dark:bg-white/5 text-slate-400 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
                       title="Ver Detalles"
                     >
                       <ExternalLink size={18} />
