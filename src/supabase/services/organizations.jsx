@@ -58,7 +58,11 @@ export const getUserOrganizations = async (userId) => {
     });
 
     if (error) throw error;
-    return { data, error: null };
+    const normalized = (data || []).map((org) => ({
+      ...org,
+      id: org.id ?? org.organization_id,
+    }));
+    return { data: normalized, error: null };
   } catch (error) {
     console.error('Error en getUserOrganizations:', error);
     return { data: [], error };
