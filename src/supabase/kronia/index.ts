@@ -106,7 +106,7 @@ async function buildSlotsForDay(supabase: any, dateStr: string) {
     .from("appointments")
     .select("start_time,end_time,status")
     .eq("staff_id", STAFF_ID)
-    .neq("status", "cancelled")
+    .neq("status", "canceled")
     .gte("start_time", start)
     .lt("start_time", next);
 
@@ -316,7 +316,7 @@ Deno.serve(async (req) => {
       .from("appointments")
       .select("id,start_time,status")
       .eq("client_phone", text)
-      .neq("status", "cancelled")
+      .neq("status", "canceled")
       .gte("start_time", new Date().toISOString())
       .order("start_time", { ascending: true });
 
@@ -350,13 +350,13 @@ Deno.serve(async (req) => {
     return new Response("ok");
   }
 
-  // 8) Cancelar turno (status = cancelled)
+  // 8) Cancelar turno (status = canceled)
   if (data?.startsWith("cancelar_id_")) {
     const appointmentId = data.split("_")[2];
 
     const { error } = await supabase
       .from("appointments")
-      .update({ status: "cancelled" })
+      .update({ status: "canceled" })
       .eq("id", appointmentId);
 
     const mensajeFin = error

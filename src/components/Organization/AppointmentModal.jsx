@@ -26,6 +26,10 @@ export default function AppointmentModal({
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const isPastAppointment = useMemo(() => {
+    if (!appointment?.end_time) return false;
+    return new Date(appointment.end_time).getTime() <= Date.now();
+  }, [appointment?.end_time]);
 
   const durationMs = useMemo(() => {
     if (!appointment?.start_time || !appointment?.end_time) return 30 * 60 * 1000;
@@ -142,6 +146,11 @@ export default function AppointmentModal({
   const currentStaff = staffOptions.find((item) => item.id === appointment.staff_id);
 
   const handleCancelAppointment = async () => {
+    if (isPastAppointment) {
+      toast.error('No se pueden cancelar turnos pasados.');
+      return;
+    }
+
     setShowCancelConfirm(false);
 
     setLoading(true);
@@ -159,6 +168,11 @@ export default function AppointmentModal({
   };
 
   const onSubmit = async (values) => {
+    if (isPastAppointment) {
+      toast.error('No se pueden modificar turnos pasados.');
+      return;
+    }
+
     if (!values.client_name?.trim()) {
       setError('client_name', { type: 'manual', message: 'Ingresa el nombre del cliente.' });
       return;
@@ -306,10 +320,17 @@ export default function AppointmentModal({
               </p>
             </div>
 
+            {isPastAppointment ? (
+              <div className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                Este turno ya paso y no se puede modificar ni cancelar.
+              </div>
+            ) : null}
+
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setEditMode(true)}
+                disabled={isPastAppointment}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 text-sm font-bold"
               >
                 <Pencil size={14} />
@@ -318,7 +339,7 @@ export default function AppointmentModal({
               <button
                 type="button"
                 onClick={() => setShowCancelConfirm(true)}
-                disabled={loading}
+                disabled={loading || isPastAppointment}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-sm font-bold disabled:opacity-60"
               >
                 {loading ? <Loader2 size={14} className="animate-spin" /> : null}
