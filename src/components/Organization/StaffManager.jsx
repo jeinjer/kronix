@@ -16,6 +16,7 @@ export default function StaffManager({ organizationId, organizationName, onCount
   const [updatingId, setUpdatingId] = useState('');
   const [deletingId, setDeletingId] = useState('');
   const [staffList, setStaffList] = useState([]);
+  const [staffToDelete, setStaffToDelete] = useState(null);
 
   const activeCount = useMemo(
     () => staffList.filter((employee) => employee.is_active).length,
@@ -95,23 +96,25 @@ export default function StaffManager({ organizationId, organizationName, onCount
     setUpdatingId('');
   };
 
-  const handleDeleteEmployee = async (employee) => {
-    const confirmed = window.confirm(
-      'Seguro que quieres eliminar a este empleado? Desaparecera de la lista.'
-    );
-    if (!confirmed) return;
+  const handleDeleteEmployee = (employee) => {
+    setStaffToDelete(employee);
+  };
 
-    setDeletingId(employee.id);
-    const { data, error } = await softDeleteStaffMember({ staffId: employee.id });
+  const confirmDeleteEmployee = async () => {
+    if (!staffToDelete?.id) return;
+
+    setDeletingId(staffToDelete.id);
+    const { data, error } = await softDeleteStaffMember({ staffId: staffToDelete.id });
 
     if (error || !data) {
       toast.error('No se pudo eliminar el empleado');
     } else {
-      setStaffList((prev) => prev.filter((item) => item.id !== employee.id));
+      setStaffList((prev) => prev.filter((item) => item.id !== staffToDelete.id));
       toast.success('Empleado eliminado');
       onStaffChanged?.();
     }
 
+    setStaffToDelete(null);
     setDeletingId('');
   };
 
@@ -260,6 +263,42 @@ export default function StaffManager({ organizationId, organizationName, onCount
           </div>
         )}
       </article>
+
+      {staffToDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setStaffToDelete(null)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-6 shadow-2xl">
+            <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Confirmar eliminacion
+            </h4>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
+              Seguro que quieres eliminar a <span className="font-bold">{staffToDelete.name}</span>? Desaparecera de la lista.
+            </p>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setStaffToDelete(null)}
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteEmployee}
+                disabled={deletingId === staffToDelete.id}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-70"
+              >
+                {deletingId === staffToDelete.id ? <Loader2 size={13} className="animate-spin" /> : null}
+                {deletingId === staffToDelete.id ? 'Eliminando...' : 'Si, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

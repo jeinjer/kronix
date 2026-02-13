@@ -17,6 +17,9 @@ const parseInputDate = (value) => {
 };
 
 const PHONE_REGEX = /^[0-9+\-\s()]{6,20}$/;
+const isSlotExpired = (slot) =>
+  String(slot?.status || '').toLowerCase() === 'expired';
+const isPastSlot = (slot) => new Date(slot?.startUtc || '').getTime() <= Date.now();
 
 export default function AvailableSlots({
   organizationId,
@@ -92,6 +95,11 @@ export default function AvailableSlots({
   }, [staffId, selectedDate, serviceDuration, businessTimeZone, canLoad, refreshKey]);
 
   const handleSelectSlot = (slot) => {
+    if (isPastSlot(slot)) {
+      toast.error('Ese horario ya paso y no se puede reservar.');
+      return;
+    }
+
     if (!slot.isAvailable) {
       if (slot.appointmentId) onOccupiedSlotClick?.(slot.appointmentId);
       return;
@@ -109,6 +117,12 @@ export default function AvailableSlots({
   };
 
   const selectedSlot = slots.find((slot) => slot.startUtc === selectedStartUtc) || null;
+  useEffect(() => {
+    if (!selectedSlot) return;
+    if (!selectedSlot.isAvailable || isSlotExpired(selectedSlot) || isPastSlot(selectedSlot)) {
+      setSelectedStartUtc('');
+    }
+  }, [selectedSlot]);
 
   const handleBooking = async () => {
     if (isBooking) return;
@@ -122,6 +136,12 @@ export default function AvailableSlots({
     }
     if (!selectedSlot.isAvailable) {
       toast.error('Ese horario ya no esta disponible.');
+      return;
+    }
+    if (isPastSlot(selectedSlot) || isSlotExpired(selectedSlot)) {
+      toast.error('Ese horario ya paso y no se puede reservar.');
+      setSelectedStartUtc('');
+      await getUpdatedSlots();
       return;
     }
     if (!clientName.trim()) {
@@ -230,13 +250,17 @@ export default function AvailableSlots({
             {slots.map((slot) => {
               const isSelected = selectedStartUtc === slot.startUtc;
               const isFree = slot.isAvailable;
+              const isExpired = isSlotExpired(slot);
+              const isPast = isPastSlot(slot);
               return (
                 <button
                   key={slot.startUtc}
                   type="button"
                   onClick={() => handleSelectSlot(slot)}
                   className={`rounded-lg px-3 py-2 text-sm font-bold border transition-colors ${
-                    isFree
+                    isPast
+                      ? 'bg-slate-400/15 border-slate-400/40 text-slate-700 dark:text-slate-400'
+                      : isFree
                       ? isSelected
                         ? 'bg-emerald-600 border-emerald-500 text-white'
                         : 'bg-emerald-500/15 border-emerald-400/50 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
@@ -245,10 +269,10 @@ export default function AvailableSlots({
                 >
                   <div className="text-base leading-none">{slot.label}</div>
                   <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide opacity-90">
-                    Estado: {isFree ? 'Libre' : 'Ocupado'}
+                    Estado: {isPast ? 'Pasado' : isExpired ? 'Vencido' : isFree ? 'Libre' : 'Ocupado'}
                   </div>
                   <div className="mt-1 text-[11px] font-medium opacity-85 truncate">
-                    {isFree ? 'Sin reserva' : `Reserva: ${slot.clientName || 'Cliente'}`}
+                    {isPast ? 'No seleccionable' : isExpired ? 'Horario pasado' : isFree ? 'Sin reserva' : `Reserva: ${slot.clientName || 'Cliente'}`}
                   </div>
                 </button>
               );

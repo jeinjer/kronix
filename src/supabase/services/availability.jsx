@@ -124,21 +124,24 @@ const buildDaySlots = ({
     while (cursor.getTime() + serviceMs <= rangeEndUtc.getTime()) {
       const slotStart = new Date(cursor.getTime());
       const slotEnd = new Date(cursor.getTime() + serviceMs);
+      const isPast = slotStart.getTime() <= Date.now();
 
       const collision = appointments.find((appt) =>
         overlaps(slotStart, slotEnd, new Date(appt.start_time), new Date(appt.end_time))
       );
 
-      const isAvailable = !collision;
+      const isReserved = Boolean(collision);
+      const isAvailable = !isReserved && !isPast;
+      const status = isReserved ? 'occupied' : isPast ? 'expired' : 'free';
 
       slots.push({
         startUtc: slotStart.toISOString(),
         endUtc: slotEnd.toISOString(),
         label: formatSlotLabel(slotStart, timeZone),
         isAvailable,
-        status: isAvailable ? 'free' : 'occupied',
-        appointmentId: isAvailable ? null : collision?.id || null,
-        clientName: isAvailable ? null : collision?.client_name || 'Reservado',
+        status,
+        appointmentId: isReserved ? collision?.id || null : null,
+        clientName: isReserved ? collision?.client_name || 'Reservado' : null,
       });
 
       cursor = new Date(cursor.getTime() + serviceMs);

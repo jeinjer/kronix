@@ -83,6 +83,13 @@ const formatReservedDateLabel = (isoString, timeZone) =>
     day: '2-digit',
     month: '2-digit',
   }).format(new Date(isoString));
+const formatSelectedDayLabel = (date, timeZone) =>
+  new Intl.DateTimeFormat('es-AR', {
+    timeZone,
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+  }).format(date);
 
 export default function BranchCalendar({
   organizationId,
@@ -203,6 +210,10 @@ export default function BranchCalendar({
   );
 
   const selectedDateObject = useMemo(() => parseDateInput(selectedDate), [selectedDate]);
+  const selectedDayLabel = useMemo(
+    () => formatSelectedDayLabel(selectedDateObject, businessTimeZone),
+    [selectedDateObject, businessTimeZone]
+  );
   const weekStart = useMemo(() => getWeekStart(selectedDateObject), [selectedDateObject]);
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, index) => {
@@ -254,6 +265,9 @@ export default function BranchCalendar({
           </h2>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
             {organizationName} | {appointments.length} turnos
+          </p>
+          <p className="text-cyan-700 dark:text-cyan-300 text-xs font-bold uppercase tracking-widest mt-1">
+            Dia seleccionado: {selectedDayLabel}
           </p>
         </div>
 

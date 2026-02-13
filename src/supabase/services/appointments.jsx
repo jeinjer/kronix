@@ -236,12 +236,16 @@ export const createAppointment = async ({
     if (!staffId) throw new Error('staffId requerido');
     if (!startTime || !endTime) throw new Error('Horario invalido');
     if (!clientName?.trim()) throw new Error('Nombre de cliente requerido');
+    if (new Date(startTime).getTime() <= Date.now()) {
+      throw new Error('No se pueden reservar horarios pasados.');
+    }
 
     const payload = {
       organization_id: organizationId,
       staff_id: staffId,
       start_time: startTime,
       end_time: endTime,
+      status: 'pending',
       client_name: clientName.trim(),
       client_phone: clientPhone?.trim() || null,
     };
@@ -264,6 +268,21 @@ export const updateAppointmentById = async ({ appointmentId, updates }) => {
     if (!appointmentId) throw new Error('appointmentId requerido');
     if (!updates || typeof updates !== 'object') throw new Error('updates invalidos');
 
+    const { data: currentAppointment, error: currentError } = await supabase
+      .from('appointments')
+      .select('id, end_time')
+      .eq('id', appointmentId)
+      .is('deleted_at', null)
+      .single();
+
+    if (currentError) return { data: null, error: currentError };
+    if (new Date(currentAppointment.end_time).getTime() <= Date.now()) {
+      return {
+        data: null,
+        error: { message: 'No se pueden modificar turnos pasados.' },
+      };
+    }
+
     const { data, error } = await supabase
       .from('appointments')
       .update(updates)
@@ -282,34 +301,34 @@ export const updateAppointmentById = async ({ appointmentId, updates }) => {
 export const cancelAppointment = async ({ appointmentId }) => {
   try {
     if (!appointmentId) throw new Error('appointmentId requerido');
-    const { data, error } = await supabase.rpc('cancel_appointment', {
-      p_appointment_id: appointmentId,
-    });
-    if (error) {
-      const isEnumMismatch =
-        error.code === '22P02' &&
-        String(error.message || '').toLowerCase().includes('appointment_status') &&
-        String(error.message || '').toLowerCase().includes('cancelled');
 
-      // Workaround frontend: si la RPC falla por typo "cancelled", aplicamos cancelacion directa.
-      if (isEnumMismatch) {
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('appointments')
-          .update({
-            status: 'canceled',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', appointmentId)
-          .is('deleted_at', null)
-          .select('id, status')
-          .single();
+    const { data: currentAppointment, error: currentError } = await supabase
+      .from('appointments')
+      .select('id, end_time')
+      .eq('id', appointmentId)
+      .is('deleted_at', null)
+      .single();
 
-        if (fallbackError) return { data: null, error: fallbackError };
-        return { data: fallbackData, error: null };
-      }
-
-      return { data: null, error };
+    if (currentError) return { data: null, error: currentError };
+    if (new Date(currentAppointment.end_time).getTime() <= Date.now()) {
+      return {
+        data: null,
+        error: { message: 'No se pueden cancelar turnos pasados.' },
+      };
     }
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'canceled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', appointmentId)
+      .is('deleted_at', null)
+      .select('id, status')
+      .single();
+
+    if (error) return { data: null, error };
     return { data, error: null };
   } catch (error) {
     return { data: null, error };
