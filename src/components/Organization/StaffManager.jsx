@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserPlus, Loader2, Mail, UserRound, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import CollapsiblePanel from '@/components/ui/CollapsiblePanel';
 import {
   createStaffMember,
   getOrganizationStaff,
@@ -17,6 +18,7 @@ export default function StaffManager({ organizationId, organizationName, onCount
   const [deletingId, setDeletingId] = useState('');
   const [staffList, setStaffList] = useState([]);
   const [staffToDelete, setStaffToDelete] = useState(null);
+  const [staffSectionOpen, setStaffSectionOpen] = useState(true);
 
   const activeCount = useMemo(
     () => staffList.filter((employee) => employee.is_active).length,
@@ -74,6 +76,11 @@ export default function StaffManager({ organizationId, organizationName, onCount
   };
 
   const handleToggleStatus = async (employee) => {
+    if (employee.is_active && activeCount <= 1) {
+      toast.error('Debe existir al menos un empleado activo para poder reservar turnos.');
+      return;
+    }
+
     setUpdatingId(employee.id);
 
     const { data, error } = await updateStaffStatus({
@@ -97,6 +104,16 @@ export default function StaffManager({ organizationId, organizationName, onCount
   };
 
   const handleDeleteEmployee = (employee) => {
+    if (staffList.length <= 1) {
+      toast.error('No puedes eliminar el unico empleado de la sucursal.');
+      return;
+    }
+
+    if (employee.is_active && activeCount <= 1) {
+      toast.error('No puedes eliminar al ultimo empleado activo.');
+      return;
+    }
+
     setStaffToDelete(employee);
   };
 
@@ -119,150 +136,167 @@ export default function StaffManager({ organizationId, organizationName, onCount
   };
 
   return (
-    <section className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-4">
-      <article className="xl:col-span-1 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
-        <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-          Agregar Empleado
-        </h3>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-          Sucursal: {organizationName}
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block">
-            <span className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
-              Nombre
-            </span>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Ej: Juan Perez"
-              className="w-full mt-2 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
-              Email (opcional)
-            </span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Si existe en profiles, se vincula"
-              className="w-full mt-2 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-70 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-cyan-900/20"
-          >
-            {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-            {submitting ? 'Guardando...' : 'Agregar a la sucursal'}
-          </button>
-        </form>
-      </article>
-
-      <article className="xl:col-span-2 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-            Equipo
-          </h3>
-          <span className="text-[11px] uppercase tracking-widest text-slate-500 font-bold">
-            {activeCount} activos de {staffList.length}
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="space-y-3">
-            <div className="h-16 rounded-xl bg-slate-100 dark:bg-white/5 animate-pulse" />
-            <div className="h-16 rounded-xl bg-slate-100 dark:bg-white/5 animate-pulse" />
-          </div>
-        ) : staffList.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 p-8 text-center">
-            <UserRound size={28} className="mx-auto text-slate-500 mb-3" />
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              Esta sucursal todavia no tiene empleados cargados.
+    <section className="mt-8 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
+      <CollapsiblePanel
+        title="Gestion de Empleados"
+        subtitle={`Sucursal: ${organizationName}`}
+        isOpen={staffSectionOpen}
+        onToggle={() => setStaffSectionOpen((prev) => !prev)}
+      >
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <article className="xl:col-span-1 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Agregar Empleado
+            </h3>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
+              Sucursal: {organizationName}
             </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {staffList.map((employee) => (
-              <div
-                key={employee.id}
-                className="rounded-xl border border-slate-200 dark:border-white/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50 dark:bg-white/[0.02]"
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <label className="block">
+                <span className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+                  Nombre
+                </span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Ej: Juan Perez"
+                  className="w-full mt-2 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+                  Email (opcional)
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="Si existe en profiles, se vincula"
+                  className="w-full mt-2 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-70 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-cyan-900/20"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-cyan-600/20 text-cyan-500 flex items-center justify-center font-bold overflow-hidden">
-                    {employee.avatar_url ? (
-                      <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      (employee.name?.[0] || 'E').toUpperCase()
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 dark:text-white truncate">{employee.name}</p>
-                    <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
-                      <Mail size={12} />
-                      {employee.profile?.email || 'Sin cuenta vinculada'}
-                    </p>
-                  </div>
-                </div>
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                {submitting ? 'Guardando...' : 'Agregar a la sucursal'}
+              </button>
+            </form>
+          </article>
 
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <span
-                    className={`text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full font-bold ${
-                      employee.is_active
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-slate-400/20 text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    {employee.is_active ? 'Activo' : 'Inactivo'}
-                  </span>
+          <article className="xl:col-span-2 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Equipo
+              </h3>
+              <span className="text-[11px] uppercase tracking-widest text-slate-500 font-bold">
+                {activeCount} activos de {staffList.length}
+              </span>
+            </div>
 
-                  <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <span>Activo</span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={employee.is_active}
-                      onClick={() => handleToggleStatus(employee)}
-                      disabled={updatingId === employee.id}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-60 ${
-                        employee.is_active ? 'bg-emerald-500' : 'bg-slate-400'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          employee.is_active ? 'translate-x-5' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                    {updatingId === employee.id ? <Loader2 size={13} className="animate-spin" /> : null}
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteEmployee(employee)}
-                    disabled={deletingId === employee.id}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-60"
-                  >
-                    {deletingId === employee.id ? (
-                      <Loader2 size={13} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={13} />
-                    )}
-                    Eliminar empleado
-                  </button>
-                </div>
+            {loading ? (
+              <div className="space-y-3">
+                <div className="h-16 rounded-xl bg-slate-100 dark:bg-white/5 animate-pulse" />
+                <div className="h-16 rounded-xl bg-slate-100 dark:bg-white/5 animate-pulse" />
               </div>
-            ))}
-          </div>
-        )}
-      </article>
+            ) : staffList.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 p-8 text-center">
+                <UserRound size={28} className="mx-auto text-slate-500 mb-3" />
+                <p className="text-slate-600 dark:text-slate-400 text-sm">
+                  Esta sucursal todavia no tiene empleados cargados.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {staffList.map((employee) => (
+                  <div
+                    key={employee.id}
+                    className="rounded-xl border border-slate-200 dark:border-white/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50 dark:bg-white/[0.02]"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-full bg-cyan-600/20 text-cyan-500 flex items-center justify-center font-bold overflow-hidden">
+                        {employee.avatar_url ? (
+                          <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          (employee.name?.[0] || 'E').toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0 w-full">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-bold text-slate-900 dark:text-white truncate">{employee.name}</p>
+                          <span
+                            className={`text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full font-bold shrink-0 ${
+                              employee.is_active
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-slate-400/20 text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            {employee.is_active ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                          <Mail size={12} />
+                          {employee.profile?.email || 'Sin cuenta vinculada'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-stretch gap-2 sm:min-w-[180px]">
+                      {employee.is_active && activeCount <= 1 ? (
+                        <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-full font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                          Minimo requerido
+                        </span>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(employee)}
+                        disabled={updatingId === employee.id || (employee.is_active && activeCount <= 1)}
+                        title={employee.is_active && activeCount <= 1 ? 'Debe quedar al menos un empleado activo.' : 'Cambiar estado'}
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 transition-colors disabled:opacity-60"
+                      >
+                        {updatingId === employee.id ? <Loader2 size={13} className="animate-spin" /> : null}
+                        {employee.is_active ? 'Inactivar' : 'Activar'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEmployee(employee)}
+                        disabled={
+                          deletingId === employee.id ||
+                          staffList.length <= 1 ||
+                          (employee.is_active && activeCount <= 1)
+                        }
+                        title={
+                          staffList.length <= 1
+                            ? 'No puedes eliminar el unico empleado.'
+                            : employee.is_active && activeCount <= 1
+                            ? 'No puedes eliminar al ultimo empleado activo.'
+                            : 'Eliminar empleado'
+                        }
+                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-60"
+                      >
+                        {deletingId === employee.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={13} />
+                        )}
+                        Eliminar empleado
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+        </div>
+      </CollapsiblePanel>
 
       {staffToDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

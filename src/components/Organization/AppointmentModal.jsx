@@ -4,16 +4,25 @@ import { Loader2, Pencil, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getStaffAvailableSlots } from '@/supabase/services/availability';
 import {
+  formatAppointmentDate,
   checkStaffAvailability,
-  cancelAppointment,
   formatAppointmentDateForInput,
   formatAppointmentTime,
-  formatAppointmentTimeForInput,
   localDateTimeToUtcIso,
   updateAppointmentById,
 } from '@/supabase/services/appointments';
 
 const PHONE_REGEX = /^[0-9+\-\s()]{6,20}$/;
+
+const toHHMM = (isoString, timeZone) => {
+  if (!isoString) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(isoString));
+};
 
 export default function AppointmentModal({
   isOpen,
@@ -25,7 +34,9 @@ export default function AppointmentModal({
 }) {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [loadingTimes, setLoadingTimes] = useState(false);
+
   const isPastAppointment = useMemo(() => {
     if (!appointment?.end_time) return false;
     return new Date(appointment.end_time).getTime() <= Date.now();
@@ -41,7 +52,7 @@ export default function AppointmentModal({
     [appointment?.start_time, timeZone]
   );
   const initialTime = useMemo(
-    () => formatAppointmentTimeForInput(appointment?.start_time, timeZone),
+    () => toHHMM(appointment?.start_time, timeZone),
     [appointment?.start_time, timeZone]
   );
 
@@ -52,6 +63,7 @@ export default function AppointmentModal({
     setError,
     clearErrors,
     setValue,
+    getValues,
     watch,
     formState: { errors },
   } = useForm({
@@ -63,8 +75,6 @@ export default function AppointmentModal({
       time: '',
     },
   });
-  const [availableTimes, setAvailableTimes] = useState([]);
-  const [loadingTimes, setLoadingTimes] = useState(false);
 
   useEffect(() => {
     if (!appointment) return;
@@ -73,14 +83,13 @@ export default function AppointmentModal({
       client_phone: appointment.client_phone || '',
       staff_id: appointment.staff_id || '',
       date: formatAppointmentDateForInput(appointment.start_time, timeZone),
-      time: formatAppointmentTimeForInput(appointment.start_time, timeZone),
+      time: toHHMM(appointment.start_time, timeZone),
     });
     setEditMode(false);
   }, [appointment, reset, timeZone]);
 
   const watchedStaffId = watch('staff_id');
   const watchedDate = watch('date');
-  const watchedTime = watch('time');
 
   useEffect(() => {
     const loadAvailableTimes = async () => {
@@ -108,16 +117,17 @@ export default function AppointmentModal({
 
       const options = (data || [])
         .filter((slot) => slot.isAvailable)
-        .map((slot) => formatAppointmentTimeForInput(slot.startUtc, timeZone));
+        .map((slot) => toHHMM(slot.startUtc, timeZone));
 
-      const uniqueOptions = [...new Set(options)];
+      const uniqueOptions = [...new Set(options)].sort();
       setAvailableTimes(uniqueOptions);
 
       if (!uniqueOptions.length) {
-        setError('time', { type: 'manual', message: 'No hay horarios disponibles para ese barbero en esa fecha.' });
+        setError('time', { type: 'manual', message: 'No hay horarios disponibles para ese empleado en esa fecha.' });
       } else {
+        const currentTime = getValues('time');
         clearErrors('time');
-        if (!uniqueOptions.includes(watchedTime)) {
+        if (currentTime && !uniqueOptions.includes(currentTime)) {
           setValue('time', '', { shouldValidate: true, shouldDirty: true });
           setError('time', { type: 'manual', message: 'Selecciona un horario disponible.' });
         }
@@ -133,10 +143,10 @@ export default function AppointmentModal({
     editMode,
     watchedStaffId,
     watchedDate,
-    watchedTime,
     durationMs,
     timeZone,
     clearErrors,
+    getValues,
     setError,
     setValue,
   ]);
@@ -144,28 +154,6 @@ export default function AppointmentModal({
   if (!isOpen || !appointment) return null;
 
   const currentStaff = staffOptions.find((item) => item.id === appointment.staff_id);
-
-  const handleCancelAppointment = async () => {
-    if (isPastAppointment) {
-      toast.error('No se pueden cancelar turnos pasados.');
-      return;
-    }
-
-    setShowCancelConfirm(false);
-
-    setLoading(true);
-    const { error } = await cancelAppointment({ appointmentId: appointment.id });
-    if (error) {
-      toast.error('No se pudo cancelar el turno.');
-      setLoading(false);
-      return;
-    }
-
-    toast.success('Turno cancelado.');
-    setLoading(false);
-    onSuccess?.();
-    onClose?.();
-  };
 
   const onSubmit = async (values) => {
     if (isPastAppointment) {
@@ -199,7 +187,7 @@ export default function AppointmentModal({
     setLoading(true);
 
     if (!changedSchedule) {
-      const { error } = await updateAppointmentById({
+      const { data: updatedAppointment, error } = await updateAppointmentById({
         appointmentId: appointment.id,
         updates: {
           client_name: values.client_name.trim(),
@@ -211,7 +199,7 @@ export default function AppointmentModal({
         toast.error('No se pudieron guardar los cambios.');
       } else {
         toast.success('Turno actualizado.');
-        onSuccess?.();
+        onSuccess?.(updatedAppointment);
         onClose?.();
       }
       setLoading(false);
@@ -224,13 +212,9 @@ export default function AppointmentModal({
       setLoading(false);
       return;
     }
+
     if (!values.time) {
       setError('time', { type: 'manual', message: 'Selecciona un horario disponible.' });
-      setLoading(false);
-      return;
-    }
-    if (!values.time.endsWith(':00') && !values.time.endsWith(':30')) {
-      setError('time', { type: 'manual', message: 'Los minutos solo pueden ser 00 o 30.' });
       setLoading(false);
       return;
     }
@@ -245,7 +229,7 @@ export default function AppointmentModal({
     });
 
     if (availabilityError) {
-      toast.error('No se pudo validar disponibilidad del barbero.');
+      toast.error('No se pudo validar disponibilidad del empleado.');
       setLoading(false);
       return;
     }
@@ -253,13 +237,13 @@ export default function AppointmentModal({
     if (!isAvailable) {
       setError('root', {
         type: 'manual',
-        message: 'Ese barbero ya esta ocupado en ese nuevo horario. Por favor elige otro.',
+        message: 'Ese empleado ya esta ocupado en ese horario. Elige otro.',
       });
       setLoading(false);
       return;
     }
 
-    const { error } = await updateAppointmentById({
+    const { data: updatedAppointment, error } = await updateAppointmentById({
       appointmentId: appointment.id,
       updates: {
         client_name: values.client_name.trim(),
@@ -273,7 +257,7 @@ export default function AppointmentModal({
     if (error?.code === '23P01') {
       setError('root', {
         type: 'manual',
-        message: 'Ese barbero ya esta ocupado en ese nuevo horario. Por favor elige otro.',
+        message: 'Ese empleado ya esta ocupado en ese horario. Elige otro.',
       });
       setLoading(false);
       return;
@@ -287,7 +271,7 @@ export default function AppointmentModal({
 
     toast.success('Turno actualizado.');
     setLoading(false);
-    onSuccess?.();
+    onSuccess?.(updatedAppointment);
     onClose?.();
   };
 
@@ -302,7 +286,7 @@ export default function AppointmentModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10"
+            className="cursor-pointer p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10"
           >
             <XCircle size={18} />
           </button>
@@ -311,39 +295,51 @@ export default function AppointmentModal({
         {!editMode ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-white/[0.02]">
-              <p className="text-sm"><span className="font-bold">Cliente:</span> {appointment.client_name}</p>
+              <p className="text-sm flex items-center gap-1 min-w-0">
+                <span className="font-bold shrink-0">Cliente:</span>
+                <span className="truncate min-w-0" title={appointment.client_name || 'Sin nombre'}>
+                  {appointment.client_name}
+                </span>
+              </p>
               <p className="text-sm mt-1"><span className="font-bold">Telefono:</span> {appointment.client_phone || 'Sin telefono'}</p>
-              <p className="text-sm mt-1"><span className="font-bold">Barbero:</span> {currentStaff?.name || 'Sin staff'}</p>
+              <p className="text-sm mt-1 flex items-center gap-1 min-w-0">
+                <span className="font-bold shrink-0">Empleado:</span>
+                <span className="truncate min-w-0" title={currentStaff?.name || 'Sin staff'}>
+                  {currentStaff?.name || 'Sin staff'}
+                </span>
+              </p>
               <p className="text-sm mt-1">
-                <span className="font-bold">Fecha y hora:</span>{' '}
-                {formatAppointmentDateForInput(appointment.start_time, timeZone)} {formatAppointmentTime(appointment.start_time, timeZone)} - {formatAppointmentTime(appointment.end_time, timeZone)}
+                <span className="font-bold">Dia:</span>{' '}
+                {formatAppointmentDate(appointment.start_time, timeZone)}
+              </p>
+              <p className="text-sm mt-1">
+                <span className="font-bold">Horario:</span>{' '}
+                {formatAppointmentTime(appointment.start_time, timeZone)} - {formatAppointmentTime(appointment.end_time, timeZone)}
               </p>
             </div>
 
             {isPastAppointment ? (
               <div className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                Este turno ya paso y no se puede modificar ni cancelar.
+                Este turno ya paso y no se puede modificar.
               </div>
             ) : null}
 
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setEditMode(true)}
-                disabled={isPastAppointment}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 text-sm font-bold"
+                onClick={onClose}
+                className="cursor-pointer px-3 py-2 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 text-sm font-bold hover:bg-slate-300 dark:hover:bg-white/20"
               >
-                <Pencil size={14} />
-                Editar
+                Volver
               </button>
               <button
                 type="button"
-                onClick={() => setShowCancelConfirm(true)}
-                disabled={loading || isPastAppointment}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-sm font-bold disabled:opacity-60"
+                onClick={() => setEditMode(true)}
+                disabled={isPastAppointment}
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold disabled:opacity-60"
               >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : null}
-                Cancelar Turno
+                <Pencil size={14} />
+                Editar
               </button>
             </div>
           </div>
@@ -369,7 +365,7 @@ export default function AppointmentModal({
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Barbero</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Empleado</label>
                 <select
                   {...register('staff_id')}
                   className="w-full mt-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
@@ -426,14 +422,14 @@ export default function AppointmentModal({
               <button
                 type="button"
                 onClick={() => setEditMode(false)}
-                className="px-3 py-2 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 text-sm font-bold"
+                className="cursor-pointer px-3 py-2 rounded-lg bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 text-sm font-bold hover:bg-slate-300 dark:hover:bg-white/20"
               >
                 Volver
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold disabled:opacity-60"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold disabled:opacity-60"
               >
                 {loading ? <Loader2 size={14} className="animate-spin" /> : null}
                 Guardar Cambios
@@ -442,38 +438,6 @@ export default function AppointmentModal({
           </form>
         )}
       </div>
-
-      {showCancelConfirm ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/55" onClick={() => setShowCancelConfirm(false)} />
-          <div className="relative w-full max-w-sm rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-4 shadow-2xl">
-            <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
-              Confirmar cancelacion
-            </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
-              Seguro que deseas cancelar este turno? El horario quedara disponible nuevamente.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCancelConfirm(false)}
-                className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
-              >
-                Volver
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelAppointment}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 disabled:opacity-60"
-              >
-                {loading ? <Loader2 size={13} className="animate-spin" /> : null}
-                Si, cancelar turno
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

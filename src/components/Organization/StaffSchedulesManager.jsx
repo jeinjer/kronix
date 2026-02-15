@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { getOrganizationStaff } from '@/supabase/services/staff';
 import { getStaffSchedules, replaceStaffSchedules } from '@/supabase/services/schedules';
 import ScheduleTemplateSelector from './ScheduleTemplateSelector';
+import CollapsiblePanel from '@/components/ui/CollapsiblePanel';
 
 const DAYS = [
   { value: 0, label: 'Domingo' },
@@ -41,6 +42,20 @@ const splitTimeParts = (timeValue) => {
   return { hour: safeHour, minute: safeMinute };
 };
 const buildTimeValue = (hour, minute) => `${hour}:${minute}`;
+const serializeBlocksByDay = (blocksByDay) =>
+  DAYS.map((day) =>
+    (blocksByDay[day.value] || [])
+      .map((block) => ({
+        start_time: normalizeTime(block.start_time),
+        end_time: normalizeTime(block.end_time),
+      }))
+      .sort((a, b) =>
+        a.start_time === b.start_time
+          ? a.end_time.localeCompare(b.end_time)
+          : a.start_time.localeCompare(b.start_time)
+      )
+  );
+
 const validateDayBlocks = (dayLabel, blocks) => {
   for (const block of blocks) {
     if (!block.start_time || !block.end_time) {
@@ -82,12 +97,20 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [clearingAll, setClearingAll] = useState(false);
   const [blocksByDay, setBlocksByDay] = useState(createEmptyWeek());
+  const [persistedSignature, setPersistedSignature] = useState(
+    JSON.stringify(serializeBlocksByDay(createEmptyWeek()))
+  );
   const [blockToRemove, setBlockToRemove] = useState(null);
+  const [confirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
+  const [schedulesOpen, setSchedulesOpen] = useState(true);
 
   const loadScheduleData = useCallback(async () => {
     if (!selectedStaffId) {
-      setBlocksByDay(createEmptyWeek());
+      const emptyWeek = createEmptyWeek();
+      setBlocksByDay(emptyWeek);
+      setPersistedSignature(JSON.stringify(serializeBlocksByDay(emptyWeek)));
       return;
     }
 
@@ -95,7 +118,9 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     const { data, error } = await getStaffSchedules(selectedStaffId);
     if (error) {
       toast.error('No se pudo cargar el calendario laboral');
-      setBlocksByDay(createEmptyWeek());
+      const emptyWeek = createEmptyWeek();
+      setBlocksByDay(emptyWeek);
+      setPersistedSignature(JSON.stringify(serializeBlocksByDay(emptyWeek)));
     } else {
       const grouped = createEmptyWeek();
       (data || []).forEach((row) => {
@@ -107,7 +132,15 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
           end_time: normalizeTime(row.end_time),
         });
       });
+      DAYS.forEach((day) => {
+        grouped[day.value] = (grouped[day.value] || []).sort((a, b) =>
+          a.start_time === b.start_time
+            ? a.end_time.localeCompare(b.end_time)
+            : a.start_time.localeCompare(b.start_time)
+        );
+      });
       setBlocksByDay(grouped);
+      setPersistedSignature(JSON.stringify(serializeBlocksByDay(grouped)));
     }
     setLoadingSchedule(false);
   }, [selectedStaffId]);
@@ -159,6 +192,15 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     () => DAYS.some((day) => Boolean(dayValidationMessages[day.value])),
     [dayValidationMessages]
   );
+  const hasAnyBlocks = useMemo(
+    () => DAYS.some((day) => (blocksByDay[day.value] || []).length > 0),
+    [blocksByDay]
+  );
+  const currentSignature = useMemo(
+    () => JSON.stringify(serializeBlocksByDay(blocksByDay)),
+    [blocksByDay]
+  );
+  const hasUnsavedChanges = currentSignature !== persistedSignature;
 
   const handleAddBlock = (dayOfWeek) => {
     if (hasPendingBlock) {
@@ -244,44 +286,68 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     setSaving(false);
   };
 
+  const handleClearAllSchedules = async () => {
+    if (!selectedStaffId) {
+      toast.error('Selecciona un empleado.');
+      return;
+    }
+
+    setClearingAll(true);
+    const { error } = await replaceStaffSchedules({
+      staffId: selectedStaffId,
+      blocks: [],
+    });
+
+    if (error) {
+      toast.error('No se pudieron borrar los horarios.');
+    } else {
+      const emptyWeek = createEmptyWeek();
+      setBlocksByDay(emptyWeek);
+      setPersistedSignature(JSON.stringify(serializeBlocksByDay(emptyWeek)));
+      toast.success('Todos los horarios fueron eliminados.');
+      onSchedulesChanged?.();
+    }
+
+    setClearingAll(false);
+    setConfirmClearAllOpen(false);
+  };
+
   return (
     <section className="mt-8 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
-        <div>
-          <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-            Calendario por Empleado
-          </h3>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-            Define horarios semanales para cada integrante
-          </p>
-        </div>
+      <CollapsiblePanel
+        title="Calendario por Empleado"
+        subtitle="Define horarios semanales para cada integrante"
+        isOpen={schedulesOpen}
+        onToggle={() => setSchedulesOpen((prev) => !prev)}
+      >
+        <>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-3 mb-5 mt-5">
+            {hasStaff ? (
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <select
+                  value={selectedStaffId}
+                  onChange={(event) => setSelectedStaffId(event.target.value)}
+                  className="bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                >
+                  {staffList.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.name}
+                    </option>
+                  ))}
+                </select>
 
-        {hasStaff ? (
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-            <select
-              value={selectedStaffId}
-              onChange={(event) => setSelectedStaffId(event.target.value)}
-              className="bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              {staffList.map((staff) => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.name}
-                </option>
-              ))}
-            </select>
-
-            <ScheduleTemplateSelector
-              staffId={selectedStaffId}
-              onSuccess={async () => {
-                await loadScheduleData();
-                onSchedulesChanged?.();
-              }}
-            />
+                <ScheduleTemplateSelector
+                  staffId={selectedStaffId}
+                  onSuccess={async () => {
+                    await loadScheduleData();
+                    onSchedulesChanged?.();
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
 
-      {hasPendingBlock ? (
+          {hasPendingBlock ? (
         <div className="mb-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
             Tienes un bloque horario nuevo pendiente. Guardalo para confirmarlo.
@@ -295,20 +361,20 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             Guardar bloque horario nuevo
           </button>
-        </div>
-      ) : null}
+          </div>
+          ) : null}
 
-      {loadingStaff || loadingSchedule ? (
-        <div className="py-10 flex items-center justify-center gap-2 text-slate-500">
-          <Loader2 size={18} className="animate-spin" />
-          <span className="text-sm font-semibold">Cargando calendario laboral...</span>
-        </div>
-      ) : !hasStaff ? (
-        <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 py-8 px-4 text-center text-sm text-slate-600 dark:text-slate-400">
-          Primero crea empleados activos para poder asignarles horarios.
-        </div>
-      ) : (
-        <>
+          {loadingStaff || loadingSchedule ? (
+            <div className="py-10 flex items-center justify-center gap-2 text-slate-500">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-sm font-semibold">Cargando calendario laboral...</span>
+            </div>
+          ) : !hasStaff ? (
+            <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 py-8 px-4 text-center text-sm text-slate-600 dark:text-slate-400">
+              Primero crea empleados activos para poder asignarles horarios.
+            </div>
+          ) : (
+            <>
           <div className="space-y-3">
             {DAYS.map((day) => {
               const blocks = blocksByDay[day.value] || [];
@@ -338,7 +404,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
                   ) : (
                     <div className="space-y-2">
                       {blocks.map((block) => (
-                        <div key={block.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                        <div key={block.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                             Bloque horario
                           </span>
@@ -447,7 +513,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
                           <button
                             type="button"
                             onClick={() => handleRemoveBlock(day.value, block.id)}
-                            className="md:col-span-2 inline-flex items-center justify-center gap-1 text-xs font-bold px-3 py-2 rounded-lg bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25 transition-colors"
+                            className="md:col-span-2 md:self-end inline-flex items-center justify-center gap-1 text-xs font-bold px-3 py-2 rounded-lg bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25 transition-colors"
                           >
                             <Trash2 size={12} />
                             Quitar bloque horario
@@ -473,19 +539,32 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
             </p>
           ) : null}
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            {hasAnyBlocks ? (
+              <button
+                type="button"
+                onClick={() => setConfirmClearAllOpen(true)}
+                disabled={saving || clearingAll}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-sm font-bold transition-colors disabled:opacity-70"
+              >
+                {clearingAll ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Borrar todos los horarios
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || hasValidationErrors}
+              disabled={saving || clearingAll || hasValidationErrors || !hasUnsavedChanges}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold transition-colors disabled:opacity-70"
             >
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               {saving ? 'Guardando...' : 'Guardar bloques horarios'}
             </button>
           </div>
+            </>
+          )}
         </>
-      )}
+      </CollapsiblePanel>
 
       {blockToRemove ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -515,6 +594,42 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
                 className="px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white"
               >
                 Si, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmClearAllOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setConfirmClearAllOpen(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-6 shadow-2xl">
+            <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Borrar todos los horarios
+            </h4>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
+              Se eliminaran todos los bloques horarios del empleado seleccionado. Esta accion no se puede deshacer.
+            </p>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmClearAllOpen(false)}
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllSchedules}
+                disabled={clearingAll}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-70"
+              >
+                {clearingAll ? <Loader2 size={13} className="animate-spin" /> : null}
+                {clearingAll ? 'Borrando...' : 'Si, borrar todo'}
               </button>
             </div>
           </div>

@@ -119,6 +119,7 @@ export const getOrganizationAppointmentsByDate = async ({
       .select('id, organization_id, staff_id, client_name, client_phone, client_email, start_time, end_time, status, notes')
       .eq('organization_id', organizationId)
       .is('deleted_at', null)
+      .neq('status', 'canceled')
       .lt('start_time', dayEndUtc.toISOString())
       .gt('end_time', dayStartUtc.toISOString())
       .order('start_time', { ascending: true });
@@ -161,6 +162,7 @@ export const getOrganizationAppointmentsByDateRange = async ({
       .select('id, organization_id, staff_id, client_name, client_phone, client_email, start_time, end_time, status, notes')
       .eq('organization_id', organizationId)
       .is('deleted_at', null)
+      .neq('status', 'canceled')
       .lt('start_time', dayEndUtc.toISOString())
       .gt('end_time', dayStartUtc.toISOString())
       .order('start_time', { ascending: true });
@@ -193,6 +195,13 @@ export const formatAppointmentDateForInput = (isoString, timeZone) => {
   const date = new Date(isoString);
   const parts = getTimeZonePartsForDateOnly(date, timeZone);
   return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
+};
+
+export const formatAppointmentDate = (isoString, timeZone) => {
+  if (!isoString) return '--/--/----';
+  const date = new Date(isoString);
+  const parts = getTimeZonePartsForDateOnly(date, timeZone);
+  return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
 };
 
 export const formatAppointmentTimeForInput = (isoString, timeZone) => {

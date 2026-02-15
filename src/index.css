@@ -20,11 +20,43 @@
   }
 
   button {
-    @apply cursor-pointer;
+    @apply cursor-pointer transition-all duration-150;
+  }
+
+  button:hover:not(:disabled) {
+    filter: brightness(0.97);
   }
 
   button:disabled {
     @apply cursor-not-allowed;
+  }
+
+  [role='button'] {
+    @apply cursor-pointer transition-all duration-150;
+  }
+
+  [role='button']:hover {
+    filter: brightness(0.98);
+  }
+
+  input[type='date'] {
+    @apply cursor-pointer transition-colors duration-150;
+    accent-color: #06b6d4;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px;
+    transition: background-color 0.15s ease;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(14, 165, 233, 0.15);
+  }
+
+  select {
+    @apply cursor-pointer transition-colors duration-150;
   }
 
   /* Estilos para body en modo oscuro */
