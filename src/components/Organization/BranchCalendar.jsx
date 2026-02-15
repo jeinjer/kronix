@@ -1,36 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Loader2, UserRound } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getOrganizationStaff } from '@/supabase/services/staff';
 import {
-  formatAppointmentTime,
+  formatAppointmentDate,
   formatDateInputValue,
   getOrganizationAppointmentsByDate,
   getOrganizationAppointmentsByDateRange,
 } from '@/supabase/services/appointments';
 import AvailableSlots from '@/components/Organization/AvailableSlots';
 import AppointmentModal from '@/components/Organization/AppointmentModal';
-
-const STATUS_STYLES = {
-  pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-300',
-  confirmed: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300',
-  completed: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  canceled: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
-};
-
-const STATUS_LABELS = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmado',
-  completed: 'Completado',
-  canceled: 'Cancelado',
-  occupied: 'Ocupado',
-  free: 'Libre',
-};
-
-const getStatusLabel = (statusValue) => {
-  const normalized = String(statusValue || '').toLowerCase();
-  return STATUS_LABELS[normalized] || 'Ocupado';
-};
 
 const parseDateInput = (value) => {
   const [year, month, day] = value.split('-').map(Number);
@@ -72,24 +51,13 @@ const formatWeekdayLabel = (date, timeZone) =>
   new Intl.DateTimeFormat('es-AR', {
     timeZone,
     weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
   }).format(date);
 
-const formatReservedDateLabel = (isoString, timeZone) =>
-  new Intl.DateTimeFormat('es-AR', {
-    timeZone,
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-  }).format(new Date(isoString));
 const formatSelectedDayLabel = (date, timeZone) =>
-  new Intl.DateTimeFormat('es-AR', {
-    timeZone,
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-  }).format(date);
+  `${new Intl.DateTimeFormat('es-AR', { timeZone, weekday: 'long' }).format(date)} ${formatAppointmentDate(
+    date.toISOString(),
+    timeZone
+  )}`;
 
 export default function BranchCalendar({
   organizationId,
@@ -101,12 +69,14 @@ export default function BranchCalendar({
   staffRefreshKey = 0,
   schedulesRefreshKey = 0,
 }) {
+  const dateInputRef = useRef(null);
+  const lastWeekFetchKeyRef = useRef('');
   const [staffList, setStaffList] = useState([]);
   const [staffLoading, setStaffLoading] = useState(true);
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(formatDateInputValue(new Date()));
-  const [staffFilter, setStaffFilter] = useState('all');
+  const [selectedStaffId, setSelectedStaffId] = useState('');
   const [viewMode, setViewMode] = useState('day');
   const [calendarRefreshTick, setCalendarRefreshTick] = useState(0);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -116,23 +86,32 @@ export default function BranchCalendar({
     totalCount: 0,
   });
 
+  const selectedDateKey = useMemo(
+    () => localDateKeyFromIso(new Date(`${selectedDate}T00:00:00`).toISOString(), businessTimeZone),
+    [selectedDate, businessTimeZone]
+  );
+
   useEffect(() => {
     const loadStaff = async () => {
       if (!organizationId) return;
       setStaffLoading(true);
       const { data, error } = await getOrganizationStaff(organizationId);
+
       if (error) {
         toast.error('No se pudo cargar el personal');
         setStaffList([]);
-      } else {
-        const activeStaff = (data || []).filter((employee) => employee.is_active);
-        setStaffList(activeStaff);
-        if (!activeStaff.length) {
-          setStaffFilter('all');
-        } else if (staffFilter !== 'all' && !activeStaff.some((employee) => employee.id === staffFilter)) {
-          setStaffFilter('all');
-        }
+        setSelectedStaffId('');
+        setStaffLoading(false);
+        return;
       }
+
+      const activeStaff = (data || []).filter((employee) => employee.is_active);
+      setStaffList(activeStaff);
+      setSelectedStaffId((prev) => {
+        if (!activeStaff.length) return '';
+        if (prev && activeStaff.some((employee) => employee.id === prev)) return prev;
+        return activeStaff[0].id;
+      });
       setStaffLoading(false);
     };
 
@@ -141,8 +120,10 @@ export default function BranchCalendar({
 
   useEffect(() => {
     const loadAppointments = async () => {
-      if (!organizationId) return;
-      setAppointmentsLoading(true);
+      if (!organizationId || !selectedStaffId) {
+        setAppointments([]);
+        return;
+      }
 
       const dateObject = new Date(`${selectedDate}T00:00:00`);
       let data = [];
@@ -152,21 +133,30 @@ export default function BranchCalendar({
         const weekStart = getWeekStart(dateObject);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
+        const weekStartKey = formatDateInputValue(weekStart);
+        const weekFetchKey = `${organizationId}|${selectedStaffId}|${weekStartKey}|${calendarRefreshTick}`;
+        if (lastWeekFetchKeyRef.current === weekFetchKey) {
+          return;
+        }
+
+        setAppointmentsLoading(true);
 
         const response = await getOrganizationAppointmentsByDateRange({
           organizationId,
           fromDate: weekStart,
           toDate: weekEnd,
-          staffId: staffFilter === 'all' ? null : staffFilter,
+          staffId: selectedStaffId,
           timeZone: businessTimeZone,
         });
         data = response.data;
         error = response.error;
+        lastWeekFetchKeyRef.current = weekFetchKey;
       } else {
+        setAppointmentsLoading(true);
         const response = await getOrganizationAppointmentsByDate({
           organizationId,
           selectedDate: dateObject,
-          staffId: staffFilter === 'all' ? null : staffFilter,
+          staffId: selectedStaffId,
           timeZone: businessTimeZone,
         });
         data = response.data;
@@ -176,18 +166,8 @@ export default function BranchCalendar({
       if (error) {
         toast.error('No se pudo cargar la agenda');
         setAppointments([]);
-        onAppointmentsCountChange?.(0);
       } else {
         setAppointments(data || []);
-        if (viewMode === 'week') {
-          const selectedKey = localDateKeyFromIso(dateObject.toISOString(), businessTimeZone);
-          const selectedCount = (data || []).filter(
-            (appointment) => localDateKeyFromIso(appointment.start_time, businessTimeZone) === selectedKey
-          ).length;
-          onAppointmentsCountChange?.(selectedCount);
-        } else {
-          onAppointmentsCountChange?.((data || []).length);
-        }
       }
 
       setAppointmentsLoading(false);
@@ -197,16 +177,39 @@ export default function BranchCalendar({
   }, [
     organizationId,
     selectedDate,
-    staffFilter,
+    selectedStaffId,
     businessTimeZone,
-    onAppointmentsCountChange,
     viewMode,
     calendarRefreshTick,
   ]);
 
-  const staffById = useMemo(
-    () => new Map(staffList.map((employee) => [employee.id, employee])),
-    [staffList]
+  useEffect(() => {
+    if (!selectedStaffId) {
+      onAppointmentsCountChange?.(0);
+      return;
+    }
+
+    if (viewMode === 'week') {
+      const selectedCount = appointments.filter(
+        (appointment) => localDateKeyFromIso(appointment.start_time, businessTimeZone) === selectedDateKey
+      ).length;
+      onAppointmentsCountChange?.(selectedCount);
+      return;
+    }
+
+    onAppointmentsCountChange?.(appointments.length);
+  }, [
+    appointments,
+    viewMode,
+    selectedStaffId,
+    selectedDateKey,
+    businessTimeZone,
+    onAppointmentsCountChange,
+  ]);
+
+  const selectedStaff = useMemo(
+    () => staffList.find((employee) => employee.id === selectedStaffId) || null,
+    [staffList, selectedStaffId]
   );
 
   const selectedDateObject = useMemo(() => parseDateInput(selectedDate), [selectedDate]);
@@ -214,14 +217,20 @@ export default function BranchCalendar({
     () => formatSelectedDayLabel(selectedDateObject, businessTimeZone),
     [selectedDateObject, businessTimeZone]
   );
+
   const weekStart = useMemo(() => getWeekStart(selectedDateObject), [selectedDateObject]);
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, index) => {
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + index);
       return date;
-    });
-  }, [weekStart]);
+    }),
+    [weekStart]
+  );
+  const weekDayKeys = useMemo(
+    () => weekDays.map((day) => formatDateInputValue(day)),
+    [weekDays]
+  );
 
   const appointmentsByDay = useMemo(() => {
     const bucket = new Map();
@@ -236,16 +245,61 @@ export default function BranchCalendar({
     return bucket;
   }, [appointments, businessTimeZone, weekDays]);
 
-  const slotStaffId = staffFilter === 'all' ? (staffList[0]?.id || '') : staffFilter;
   useEffect(() => {
-    if (!slotStaffId) {
+    if (!selectedStaffId) {
       setSlotsSummary({ freeCount: 0, reservedCount: 0, totalCount: 0 });
     }
-  }, [slotStaffId]);
+  }, [selectedStaffId]);
 
   const handleToday = () => setSelectedDate(formatDateInputValue(new Date()));
   const handlePrev = () => setSelectedDate((prev) => shiftDateInput(prev, viewMode === 'week' ? -7 : -1));
   const handleNext = () => setSelectedDate((prev) => shiftDateInput(prev, viewMode === 'week' ? 7 : 1));
+
+  const handleAppointmentEvent = useCallback((appointmentEvent) => {
+    if (!appointmentEvent?.id) {
+      setCalendarRefreshTick((prev) => prev + 1);
+      return;
+    }
+
+    if (appointmentEvent.status === 'canceled' && selectedAppointment?.id === appointmentEvent.id) {
+      setSelectedAppointment(null);
+    }
+
+    const isVisibleInCurrentView = (() => {
+      if (!appointmentEvent?.start_time || appointmentEvent.staff_id !== selectedStaffId) return false;
+      const appointmentDayKey = localDateKeyFromIso(appointmentEvent.start_time, businessTimeZone);
+      if (viewMode === 'week') return weekDayKeys.includes(appointmentDayKey);
+      return appointmentDayKey === selectedDate;
+    })();
+
+    setAppointments((prev) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+
+      if (appointmentEvent.status === 'canceled' || !isVisibleInCurrentView) {
+        return safePrev.filter((appointment) => appointment.id !== appointmentEvent.id);
+      }
+
+      const existingIndex = safePrev.findIndex((appointment) => appointment.id === appointmentEvent.id);
+      if (existingIndex >= 0) {
+        const next = [...safePrev];
+        next[existingIndex] = { ...next[existingIndex], ...appointmentEvent };
+        return next.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+      }
+
+      return [...safePrev, appointmentEvent].sort(
+        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
+    });
+
+    setCalendarRefreshTick((prev) => prev + 1);
+  }, [
+    selectedAppointment,
+    selectedStaffId,
+    businessTimeZone,
+    viewMode,
+    weekDayKeys,
+    selectedDate,
+  ]);
 
   useEffect(() => {
     const visibleReservedCount = appointments.length;
@@ -255,6 +309,9 @@ export default function BranchCalendar({
       revenue: visibleReservedCount * servicePrice,
     });
   }, [slotsSummary.freeCount, appointments.length, servicePrice, onMetricsChange]);
+
+  const goCurrentLabel = viewMode === 'week' ? 'Ir a semana actual' : 'Ir a dia actual';
+  const goCurrentTitle = viewMode === 'week' ? 'Ir a la semana actual' : 'Ir al dia actual';
 
   return (
     <section className="mt-8 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
@@ -271,78 +328,101 @@ export default function BranchCalendar({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center bg-slate-200 dark:bg-white/5 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('day')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                viewMode === 'day'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-white/10'
-              }`}
-            >
-              Dia
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('week')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                viewMode === 'week'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-white/10'
-              }`}
-            >
-              Semana
-            </button>
+        <div className="flex w-full lg:w-auto flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Vista</span>
+            <div className="inline-flex items-center bg-slate-200 dark:bg-white/5 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('day')}
+                className={`cursor-pointer px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                  viewMode === 'day'
+                    ? 'bg-cyan-600 text-white hover:bg-cyan-500'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-white/10'
+                }`}
+              >
+                Dia
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('week')}
+                className={`cursor-pointer px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                  viewMode === 'week'
+                    ? 'bg-cyan-600 text-white hover:bg-cyan-500'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-white/10'
+                }`}
+              >
+                Semana
+              </button>
+            </div>
           </div>
 
-          <div className="inline-flex items-center gap-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="p-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={handleToday}
-              className="px-2 py-1 text-xs font-bold rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
-            >
-              Hoy
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="p-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
-            >
-              <ChevronRight size={14} />
-            </button>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Navegacion</span>
+            <div className="inline-flex items-center gap-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="cursor-pointer p-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleToday}
+                className="cursor-pointer px-2 py-1 text-xs font-bold rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
+                title={goCurrentTitle}
+              >
+                {goCurrentLabel}
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="cursor-pointer p-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
 
-          <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            <CalendarDays size={15} className="text-cyan-500" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
-              className="bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </label>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Fecha</span>
+            <label
+              className="inline-flex items-center rounded-lg border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-[#181824] px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202033] hover:border-cyan-400/50 focus-within:ring-2 focus-within:ring-cyan-500 transition-colors"
+              onClick={() => {
+                const input = dateInputRef.current;
+                if (!input) return;
+                if (typeof input.showPicker === 'function') {
+                  input.showPicker();
+                } else {
+                  input.focus();
+                }
+              }}
+            >
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
+                className="cursor-pointer w-full bg-transparent border-0 p-0 text-slate-900 dark:text-white focus:outline-none"
+              />
+            </label>
+          </div>
 
-          <select
-            value={staffFilter}
-            onChange={(event) => setStaffFilter(event.target.value)}
-            className="bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="all">Todo el staff</option>
-            {staffList.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Empleado</span>
+            <select
+              value={selectedStaffId}
+              onChange={(event) => setSelectedStaffId(event.target.value)}
+              className="cursor-pointer bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-[#202033] hover:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+            >
+              {staffList.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -351,6 +431,10 @@ export default function BranchCalendar({
           <Loader2 size={18} className="animate-spin" />
           <span className="text-sm font-semibold">Cargando calendario...</span>
         </div>
+      ) : !selectedStaffId ? (
+        <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 py-8 px-4 text-center text-sm text-slate-600 dark:text-slate-400">
+          Primero agrega al menos un empleado y configúrale horarios disponibles para poder reservar turnos.
+        </div>
       ) : viewMode === 'week' ? (
         <div className="overflow-x-auto">
           <div className="grid grid-cols-7 gap-3 min-w-[980px]">
@@ -358,77 +442,42 @@ export default function BranchCalendar({
               const key = formatDateInputValue(day);
               const dayAppointments = appointmentsByDay.get(key) || [];
               const isSelectedDay = key === selectedDate;
+              const selectDayInWeek = () => {
+                setSelectedDate(key);
+              };
               return (
                 <div
                   key={key}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedDate(key);
-                    setViewMode('day');
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      setSelectedDate(key);
-                      setViewMode('day');
-                    }
-                  }}
                   className={`rounded-xl border bg-slate-50 dark:bg-white/[0.02] p-3 transition-colors ${
                     isSelectedDay
-                      ? 'border-cyan-500/70 cursor-pointer'
-                      : 'border-slate-200 dark:border-white/10 cursor-pointer hover:border-cyan-500/40'
+                      ? 'border-cyan-500/70'
+                      : 'border-slate-200 dark:border-white/10'
                   }`}
                 >
-                  <div className="mb-3 w-full text-left rounded-lg px-2 py-1.5 hover:bg-slate-200/60 dark:hover:bg-white/5 transition-colors">
+                  <div className="mb-3 w-full text-left rounded-lg px-2 py-1.5 transition-colors">
                     <p className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
                       {formatWeekdayLabel(day, businessTimeZone)}
                     </p>
-                    <p className="text-[11px] uppercase tracking-widest text-slate-500 font-bold mt-1">
-                      {dayAppointments.length} turnos
+                    <p className="text-[11px] uppercase tracking-widest text-slate-600 dark:text-slate-300 font-bold mt-1">
+                      {formatAppointmentDate(day.toISOString(), businessTimeZone)}
                     </p>
                   </div>
 
-                  {dayAppointments.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-slate-300 dark:border-white/10 py-5 px-2 text-center text-xs text-slate-500">
-                      Sin turnos
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {dayAppointments.map((appointment) => {
-                        const staff = staffById.get(appointment.staff_id);
-                        const status = String(appointment.status || 'pending').toLowerCase();
-                        return (
-                          <article
-                            key={appointment.id}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedAppointment(appointment);
-                            }}
-                            className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] p-2.5"
-                          >
-                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                              {appointment.client_name}
-                            </p>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              {formatAppointmentTime(appointment.start_time, businessTimeZone)} -{' '}
-                              {formatAppointmentTime(appointment.end_time, businessTimeZone)}
-                            </p>
-                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                              {staff?.name || 'Sin staff'}
-                            </p>
-                            <span
-                              className={`mt-1.5 inline-block text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold ${
-                                STATUS_STYLES[status] || 'bg-slate-400/20 text-slate-600 dark:text-slate-400'
-                              }`}
-                            >
-                              {getStatusLabel(status)}
-                            </span>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] py-5 px-2 text-center">
+                    <p className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                      {dayAppointments.length}
+                    </p>
+                    <p className="text-[11px] uppercase tracking-widest text-slate-500 font-bold mt-2">
+                      turnos del dia
+                    </p>
+                    <button
+                      type="button"
+                      onClick={selectDayInWeek}
+                      className="cursor-pointer mt-3 px-2.5 py-1.5 text-[11px] font-bold rounded-md bg-cyan-600 text-white hover:bg-cyan-500 transition-colors"
+                    >
+                      Ver dia
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -437,16 +486,17 @@ export default function BranchCalendar({
       ) : null}
 
       <div className="mt-6">
-        {slotStaffId ? (
+        {selectedStaffId ? (
           <AvailableSlots
             organizationId={organizationId}
-            staffId={slotStaffId}
+            staffId={selectedStaffId}
+            staffName={selectedStaff?.name || 'Empleado'}
             serviceDuration={30}
             businessTimeZone={businessTimeZone}
             selectedDateValue={selectedDate}
             hideDateSelector
             refreshKey={schedulesRefreshKey + calendarRefreshTick}
-            onBookingCreated={() => setCalendarRefreshTick((prev) => prev + 1)}
+            onBookingCreated={handleAppointmentEvent}
             onSlotsSummaryChange={setSlotsSummary}
             onOccupiedSlotClick={(appointmentId) => {
               const found = appointments.find((appointment) => appointment.id === appointmentId);
@@ -455,7 +505,7 @@ export default function BranchCalendar({
           />
         ) : (
           <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 py-8 px-4 text-center text-sm text-slate-600 dark:text-slate-400">
-            Carga al menos un empleado activo para visualizar slots disponibles.
+            Primero agrega al menos un empleado y configúrale horarios disponibles para poder reservar turnos.
           </div>
         )}
       </div>
@@ -466,7 +516,7 @@ export default function BranchCalendar({
         staffOptions={staffList}
         timeZone={businessTimeZone}
         onClose={() => setSelectedAppointment(null)}
-        onSuccess={() => setCalendarRefreshTick((prev) => prev + 1)}
+        onSuccess={handleAppointmentEvent}
       />
     </section>
   );
