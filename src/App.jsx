@@ -21,6 +21,7 @@ import OrganizationDashboard from './pages/Organization/Dashboard';
 import Welcome from './pages/Welcome/Welcome';
 import UserPanel from './pages/UserPanel/UserPanel';
 import Onboarding from './pages/Onboarding/Onboarding';
+import SubscriptionPlansPage from './pages/Suscripciones/Suscripciones';
 
 import NotFoundPage from './pages/NotFound/404';
 import { isSuperAdminUser } from './utils/superAdmin';
@@ -79,6 +80,7 @@ function AppContent() {
 
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/suscripciones" element={<SubscriptionPlansPage />} />
             
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

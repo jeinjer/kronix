@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom';
 export default function CTASection() {
   return (
     <section className="py-32 relative overflow-hidden flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-gradient-to-t from-indigo-200/70 to-slate-100 dark:from-indigo-900/40 dark:to-slate-950 pointer-events-none transition-colors duration-500"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-indigo-200/70 to-slate-100 dark:from-indigo-900/40 dark:to-slate-950 pointer-events-none transition-colors duration-500" />
       <div className="relative z-10 text-center max-w-3xl">
         <h2 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white mb-8 tracking-tight">
-          ¿Listo para escalar?
+          Listo para escalar?
         </h2>
         <p className="text-xl text-indigo-900/60 dark:text-indigo-200/60 mb-12">
           Unite a la plataforma que eligen los profesionales que valoran su tiempo.
@@ -17,7 +17,17 @@ export default function CTASection() {
             CREAR CUENTA GRATIS
           </button>
         </Link>
-        <p className="mt-6 text-sm text-slate-600 dark:text-slate-500 font-medium tracking-wide">NO REQUIERE TARJETA DE CRÉDITO</p>
+        <div className="mt-4">
+          <Link
+            to="/suscripciones"
+            className="inline-block text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
+          >
+            Ver planes y precios
+          </Link>
+        </div>
+        <p className="mt-6 text-sm text-slate-600 dark:text-slate-500 font-medium tracking-wide">
+          NO REQUIERE TARJETA DE CREDITO
+        </p>
       </div>
     </section>
   );

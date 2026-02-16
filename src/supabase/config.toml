@@ -393,3 +393,8 @@ entrypoint = "./functions/chatbot-barberia/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/chatbot-barberia/*.html" ]
+
+[functions.notificar-baja-suscripcion]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/notificar-baja-suscripcion/index.ts"
