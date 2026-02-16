@@ -89,9 +89,6 @@ export default function HeroSection() {
              Comenzar Gratis <ArrowRight className="group-hover:translate-x-1 transition-transform" />
            </span>
         </Link>
-        <Link to="/suscripciones" className="px-8 py-4 rounded-full border border-cyan-400/60 text-cyan-700 dark:text-cyan-300 font-bold hover:bg-cyan-100/60 dark:hover:bg-cyan-500/10 transition-colors">
-          Ver Planes
-        </Link>
         <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="px-8 py-4 rounded-full border border-slate-400 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
           Ver Demo en Vivo
         </button>

@@ -83,9 +83,6 @@ export default function Header() {
             /* Solo mostramos estos botones si NO estamos en Login o Registro */
             !isAuthPage && (
               <div className="flex items-center gap-4">
-                <Link to="/suscripciones" className="text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors uppercase tracking-widest">
-                  Planes
-                </Link>
                 <Link to="/login" className="text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors uppercase tracking-widest">
                   Iniciar Sesión
                 </Link>

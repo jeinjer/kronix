@@ -76,19 +76,25 @@ export default function AuthPortal() {
     const rawCode = String(err?.code || '').toLowerCase();
 
     if (loginMode) {
-      if (rawCode === 'email_not_confirmed' || rawMessage.includes('email not confirmed')) {
-        return 'Tu email todavia no esta verificado. Revisa tu bandeja y confirma la cuenta.';
+      if (
+        rawCode === 'email_not_confirmed' ||
+        rawMessage.includes('email not confirmed')
+      ) {
+        return 'Tu email todavía no está verificado. Revisá tu bandeja y confirmá la cuenta.';
       }
 
-      if (rawCode === 'invalid_credentials' || rawMessage.includes('invalid login credentials') || rawMessage.includes('invalid credentials')) {
-        return 'Correo o contrasena incorrectos.';
+      if (
+        rawCode === 'invalid_credentials' ||
+        rawMessage.includes('invalid login credentials') ||
+        rawMessage.includes('invalid credentials')
+      ) {
+        return 'Email o contraseña incorrectos.';
       }
-    } else if (rawCode === 'user_already_exists' || rawMessage.includes('user already registered') || rawMessage.includes('already registered') || rawMessage.includes('already exists')) {
-      return 'Ya existe una cuenta con este correo. Inicia sesion.';
     }
 
-    return err?.message || 'Error de autenticacion';
+    return err?.message || 'Error de autenticación';
   };
+
   const handleAuth = async (e) => {
     e.preventDefault();
     if (!isLogin && registerRetryBlocked) return;
@@ -128,7 +134,7 @@ export default function AuthPortal() {
         const { data: invitacion } = await supabase
           .from('saas_invitations')
           .select('status')
-          .eq('email', email.trim().toLowerCase())
+          .eq('email', email)
           .maybeSingle();
 
         if (!invitacion) {
