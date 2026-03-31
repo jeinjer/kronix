@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { getUserOrganizations } from '@/supabase/services/organizations';
-import StaffManager from '@/components/Organization/StaffManager';
-import StaffSchedulesManager from '@/components/Organization/StaffSchedulesManager';
-import BranchCalendar from '@/components/Organization/BranchCalendar';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { getUserOrganizations } from "@/supabase/services/organizations";
+import StaffManager from "@/components/Organization/StaffManager";
+import StaffSchedulesManager from "@/components/Organization/StaffSchedulesManager";
+import BranchCalendar from "@/components/Organization/BranchCalendar";
 import {
   Building2,
   Calendar,
   Users,
   UserRound,
   ChevronLeft,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -41,7 +41,7 @@ export default function Dashboard() {
     const found = data?.find((organization) => organization.slug === slug);
 
     if (!found) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     } else {
       setCurrentOrg({
         ...found,
@@ -59,7 +59,7 @@ export default function Dashboard() {
       <div className="mb-8">
         <div className="mb-3">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate("/dashboard")}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-white/5 transition-colors"
           >
             <ChevronLeft size={14} />
@@ -70,7 +70,11 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-cyan-600/20 rounded-xl flex items-center justify-center text-cyan-500 border border-cyan-500/20">
             {currentOrg.logo_url ? (
-              <img src={currentOrg.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
+              <img
+                src={currentOrg.logo_url}
+                alt=""
+                className="w-full h-full object-cover rounded-xl"
+              />
             ) : (
               <Building2 size={24} />
             )}
@@ -79,7 +83,9 @@ export default function Dashboard() {
             <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
               {currentOrg.name}
             </h1>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Panel de Gestion</p>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+              Panel de Gestion
+            </p>
           </div>
         </div>
       </div>
@@ -87,21 +93,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {
-            label: 'Turnos Libres',
+            label: "Turnos Libres",
             icon: Calendar,
-            color: 'text-cyan-400',
+            color: "text-cyan-400",
             value: String(dashboardMetrics.freeSlots),
           },
           {
-            label: 'Turnos Reservados',
+            label: "Turnos Reservados",
             icon: Users,
-            color: 'text-orange-400',
+            color: "text-orange-400",
             value: String(dashboardMetrics.reservedSlots),
           },
           {
-            label: 'Cantidad de Empleados',
+            label: "Cantidad de Empleados",
             icon: UserRound,
-            color: 'text-purple-400',
+            color: "text-purple-400",
             value: String(staffCount),
           },
         ].map((item, index) => (
@@ -110,7 +116,9 @@ export default function Dashboard() {
             className="bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 p-6 rounded-2xl transition-colors duration-500 min-h-[170px] flex flex-col"
           >
             <div className="flex justify-end">
-              <div className={`p-2.5 bg-slate-100 dark:bg-white/5 rounded-lg ${item.color}`}>
+              <div
+                className={`p-2.5 bg-slate-100 dark:bg-white/5 rounded-lg ${item.color}`}
+              >
                 <item.icon size={20} />
               </div>
             </div>
@@ -118,7 +126,9 @@ export default function Dashboard() {
               <span className="text-5xl leading-none font-black text-slate-900 dark:text-white">
                 {item.value}
               </span>
-              <p className="mt-3 text-slate-500 text-xs font-bold uppercase tracking-widest">{item.label}</p>
+              <p className="mt-3 text-slate-500 text-xs font-bold uppercase tracking-widest">
+                {item.label}
+              </p>
             </div>
           </div>
         ))}

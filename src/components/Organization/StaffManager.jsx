@@ -1,28 +1,33 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { UserPlus, Loader2, Mail, UserRound, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import CollapsiblePanel from '@/components/ui/CollapsiblePanel';
+import React, { useEffect, useMemo, useState } from "react";
+import { UserPlus, Loader2, Mail, UserRound, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import {
   createStaffMember,
   getOrganizationStaff,
   softDeleteStaffMember,
   updateStaffStatus,
-} from '@/supabase/services/staff';
+} from "@/supabase/services/staff";
 
-export default function StaffManager({ organizationId, organizationName, onCountChange, onStaffChanged }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+export default function StaffManager({
+  organizationId,
+  organizationName,
+  onCountChange,
+  onStaffChanged,
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState('');
-  const [deletingId, setDeletingId] = useState('');
+  const [updatingId, setUpdatingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
   const [staffList, setStaffList] = useState([]);
   const [staffToDelete, setStaffToDelete] = useState(null);
   const [staffSectionOpen, setStaffSectionOpen] = useState(true);
 
   const activeCount = useMemo(
     () => staffList.filter((employee) => employee.is_active).length,
-    [staffList]
+    [staffList],
   );
 
   useEffect(() => {
@@ -39,7 +44,7 @@ export default function StaffManager({ organizationId, organizationName, onCount
     const { data, error } = await getOrganizationStaff(organizationId);
 
     if (error) {
-      toast.error('No se pudo cargar el staff');
+      toast.error("No se pudo cargar el staff");
       setStaffList([]);
     } else {
       setStaffList(data || []);
@@ -50,7 +55,7 @@ export default function StaffManager({ organizationId, organizationName, onCount
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!name.trim()) {
-      toast.error('Ingresa el nombre del empleado');
+      toast.error("Ingresa el nombre del empleado");
       return;
     }
 
@@ -63,12 +68,12 @@ export default function StaffManager({ organizationId, organizationName, onCount
     });
 
     if (error || !data) {
-      toast.error(error?.message || 'No se pudo agregar el empleado');
+      toast.error(error?.message || "No se pudo agregar el empleado");
     } else {
       setStaffList((prev) => [data, ...prev]);
-      setName('');
-      setEmail('');
-      toast.success('Empleado agregado');
+      setName("");
+      setEmail("");
+      toast.success("Empleado agregado");
       onStaffChanged?.();
     }
 
@@ -77,7 +82,9 @@ export default function StaffManager({ organizationId, organizationName, onCount
 
   const handleToggleStatus = async (employee) => {
     if (employee.is_active && activeCount <= 1) {
-      toast.error('Debe existir al menos un empleado activo para poder reservar turnos.');
+      toast.error(
+        "Debe existir al menos un empleado activo para poder reservar turnos.",
+      );
       return;
     }
 
@@ -89,28 +96,32 @@ export default function StaffManager({ organizationId, organizationName, onCount
     });
 
     if (error || !data) {
-      toast.error('No se pudo actualizar el estado');
+      toast.error("No se pudo actualizar el estado");
     } else {
       setStaffList((prev) =>
         prev.map((item) =>
-          item.id === employee.id ? { ...item, is_active: data.is_active } : item
-        )
+          item.id === employee.id
+            ? { ...item, is_active: data.is_active }
+            : item,
+        ),
       );
-      toast.success(data.is_active ? 'Empleado activado' : 'Empleado desactivado');
+      toast.success(
+        data.is_active ? "Empleado activado" : "Empleado desactivado",
+      );
       onStaffChanged?.();
     }
 
-    setUpdatingId('');
+    setUpdatingId("");
   };
 
   const handleDeleteEmployee = (employee) => {
     if (staffList.length <= 1) {
-      toast.error('No puedes eliminar el unico empleado de la sucursal.');
+      toast.error("No puedes eliminar el unico empleado de la sucursal.");
       return;
     }
 
     if (employee.is_active && activeCount <= 1) {
-      toast.error('No puedes eliminar al ultimo empleado activo.');
+      toast.error("No puedes eliminar al ultimo empleado activo.");
       return;
     }
 
@@ -121,18 +132,22 @@ export default function StaffManager({ organizationId, organizationName, onCount
     if (!staffToDelete?.id) return;
 
     setDeletingId(staffToDelete.id);
-    const { data, error } = await softDeleteStaffMember({ staffId: staffToDelete.id });
+    const { data, error } = await softDeleteStaffMember({
+      staffId: staffToDelete.id,
+    });
 
     if (error || !data) {
-      toast.error('No se pudo eliminar el empleado');
+      toast.error("No se pudo eliminar el empleado");
     } else {
-      setStaffList((prev) => prev.filter((item) => item.id !== staffToDelete.id));
-      toast.success('Empleado eliminado');
+      setStaffList((prev) =>
+        prev.filter((item) => item.id !== staffToDelete.id),
+      );
+      toast.success("Empleado eliminado");
       onStaffChanged?.();
     }
 
     setStaffToDelete(null);
-    setDeletingId('');
+    setDeletingId("");
   };
 
   return (
@@ -184,8 +199,12 @@ export default function StaffManager({ organizationId, organizationName, onCount
                 disabled={submitting}
                 className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-70 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-cyan-900/20"
               >
-                {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-                {submitting ? 'Guardando...' : 'Agregar a la sucursal'}
+                {submitting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <UserPlus size={16} />
+                )}
+                {submitting ? "Guardando..." : "Agregar a la sucursal"}
               </button>
             </form>
           </article>
@@ -222,27 +241,33 @@ export default function StaffManager({ organizationId, organizationName, onCount
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-11 h-11 rounded-full bg-cyan-600/20 text-cyan-500 flex items-center justify-center font-bold overflow-hidden">
                         {employee.avatar_url ? (
-                          <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img
+                            src={employee.avatar_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                          (employee.name?.[0] || 'E').toUpperCase()
+                          (employee.name?.[0] || "E").toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0 w-full">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="font-bold text-slate-900 dark:text-white truncate">{employee.name}</p>
+                          <p className="font-bold text-slate-900 dark:text-white truncate">
+                            {employee.name}
+                          </p>
                           <span
                             className={`text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full font-bold shrink-0 ${
                               employee.is_active
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-slate-400/20 text-slate-600 dark:text-slate-400'
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : "bg-slate-400/20 text-slate-600 dark:text-slate-400"
                             }`}
                           >
-                            {employee.is_active ? 'Activo' : 'Inactivo'}
+                            {employee.is_active ? "Activo" : "Inactivo"}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
                           <Mail size={12} />
-                          {employee.profile?.email || 'Sin cuenta vinculada'}
+                          {employee.profile?.email || "Sin cuenta vinculada"}
                         </p>
                       </div>
                     </div>
@@ -257,12 +282,21 @@ export default function StaffManager({ organizationId, organizationName, onCount
                       <button
                         type="button"
                         onClick={() => handleToggleStatus(employee)}
-                        disabled={updatingId === employee.id || (employee.is_active && activeCount <= 1)}
-                        title={employee.is_active && activeCount <= 1 ? 'Debe quedar al menos un empleado activo.' : 'Cambiar estado'}
+                        disabled={
+                          updatingId === employee.id ||
+                          (employee.is_active && activeCount <= 1)
+                        }
+                        title={
+                          employee.is_active && activeCount <= 1
+                            ? "Debe quedar al menos un empleado activo."
+                            : "Cambiar estado"
+                        }
                         className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 transition-colors disabled:opacity-60"
                       >
-                        {updatingId === employee.id ? <Loader2 size={13} className="animate-spin" /> : null}
-                        {employee.is_active ? 'Inactivar' : 'Activar'}
+                        {updatingId === employee.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : null}
+                        {employee.is_active ? "Inactivar" : "Activar"}
                       </button>
 
                       <button
@@ -275,10 +309,10 @@ export default function StaffManager({ organizationId, organizationName, onCount
                         }
                         title={
                           staffList.length <= 1
-                            ? 'No puedes eliminar el unico empleado.'
+                            ? "No puedes eliminar el unico empleado."
                             : employee.is_active && activeCount <= 1
-                            ? 'No puedes eliminar al ultimo empleado activo.'
-                            : 'Eliminar empleado'
+                              ? "No puedes eliminar al ultimo empleado activo."
+                              : "Eliminar empleado"
                         }
                         className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-60"
                       >
@@ -309,7 +343,9 @@ export default function StaffManager({ organizationId, organizationName, onCount
               Confirmar eliminacion
             </h4>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
-              Seguro que quieres eliminar a <span className="font-bold">{staffToDelete.name}</span>? Desaparecera de la lista.
+              Seguro que quieres eliminar a{" "}
+              <span className="font-bold">{staffToDelete.name}</span>?
+              Desaparecera de la lista.
             </p>
 
             <div className="mt-5 flex justify-end gap-2">
@@ -326,8 +362,12 @@ export default function StaffManager({ organizationId, organizationName, onCount
                 disabled={deletingId === staffToDelete.id}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-70"
               >
-                {deletingId === staffToDelete.id ? <Loader2 size={13} className="animate-spin" /> : null}
-                {deletingId === staffToDelete.id ? 'Eliminando...' : 'Si, eliminar'}
+                {deletingId === staffToDelete.id ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : null}
+                {deletingId === staffToDelete.id
+                  ? "Eliminando..."
+                  : "Si, eliminar"}
               </button>
             </div>
           </div>

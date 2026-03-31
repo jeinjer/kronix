@@ -1,18 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '@/supabase/supabaseClient';
-import { getUserRole } from '@/supabase/services/users';
-import { clearCachedProfile, readCachedProfile, writeCachedProfile } from './profileCache';
-import { loadUserProfile } from './profileService';
-import { DEFAULT_PROFILE_REFETCH_THROTTLE_MS, shouldRefetchProfile } from './refetchPolicy';
-import { isSuperAdminUser } from '@/utils/superAdmin';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/supabase/supabaseClient";
+import { getUserRole } from "@/supabase/services/users";
+import {
+  clearCachedProfile,
+  readCachedProfile,
+  writeCachedProfile,
+} from "./profileCache";
+import { loadUserProfile } from "./profileService";
+import {
+  DEFAULT_PROFILE_REFETCH_THROTTLE_MS,
+  shouldRefetchProfile,
+} from "./refetchPolicy";
+import { isSuperAdminUser } from "@/utils/superAdmin";
 
-const BOOT_MAX_SPINNER_MS = 1500; 
+const BOOT_MAX_SPINNER_MS = 1500;
 
 export const useAuthController = () => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [perfil, setPerfil] = useState(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false); 
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [perfilLoading, setPerfilLoading] = useState(false);
 
@@ -33,7 +40,7 @@ export const useAuthController = () => {
     bootFinishedRef.current = true;
     setTimeout(() => {
       if (mountedRef.current) setLoading(false);
-    }, 400); 
+    }, 400);
   };
 
   const setProfileState = (fullProfile) => {
@@ -41,8 +48,8 @@ export const useAuthController = () => {
     setIsSuperAdmin(
       isSuperAdminUser({
         user: userRef.current,
-        profile: fullProfile
-      })
+        profile: fullProfile,
+      }),
     );
   };
 
@@ -57,8 +64,14 @@ export const useAuthController = () => {
       setPerfilLoading(true);
       try {
         const fullProfile = await loadUserProfile(supabase, userId);
-        const { role: resolvedRole } = await getUserRole(userId, fullProfile?.barberia_id ?? null);
-        const normalizedProfile = { ...fullProfile, user_role: resolvedRole ?? fullProfile?.user_role };
+        const { role: resolvedRole } = await getUserRole(
+          userId,
+          fullProfile?.barberia_id ?? null,
+        );
+        const normalizedProfile = {
+          ...fullProfile,
+          user_role: resolvedRole ?? fullProfile?.user_role,
+        };
         if (!mountedRef.current) return fullProfile;
 
         setProfileState(normalizedProfile);
@@ -88,7 +101,7 @@ export const useAuthController = () => {
 
     // Evita recargas si el usuario es el mismo (cambio de pestaña)
     const shouldSyncUserState =
-      newUserId !== oldUserId || event === 'USER_UPDATED';
+      newUserId !== oldUserId || event === "USER_UPDATED";
 
     if (shouldSyncUserState) {
       setSession(currentSession ?? null);
@@ -113,7 +126,7 @@ export const useAuthController = () => {
     const lastFetchAt = lastProfileFetchRef.current.at || 0;
 
     // Evita refetch/re-render al volver de pestaña cuando Supabase re-emite SIGNED_IN.
-    if (event === 'SIGNED_IN' && newUserId === oldUserId && hasProfile) {
+    if (event === "SIGNED_IN" && newUserId === oldUserId && hasProfile) {
       finishBootOnce();
       return;
     }
@@ -129,9 +142,9 @@ export const useAuthController = () => {
     // Si aÃºn no podemos determinar si es superadmin, forzamos un fetch en eventos sensibles.
     const resolvedSuperAdmin = isSuperAdminUser({
       user: currentSession?.user,
-      profile: perfilRef.current || cached
+      profile: perfilRef.current || cached,
     });
-    if (!resolvedSuperAdmin && ['BOOT', 'INITIAL_SESSION'].includes(event)) {
+    if (!resolvedSuperAdmin && ["BOOT", "INITIAL_SESSION"].includes(event)) {
       doFetch = true;
     }
 
@@ -150,13 +163,15 @@ export const useAuthController = () => {
     const bootSafety = setTimeout(() => {
       finishBootOnce();
     }, BOOT_MAX_SPINNER_MS);
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
       void applySession(currentSession, event);
     });
 
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      applySession(initialSession, 'BOOT');
+      applySession(initialSession, "BOOT");
     });
 
     return () => {
@@ -181,18 +196,28 @@ export const useAuthController = () => {
   };
 
   const refreshAuthData = async () => {
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    await applySession(currentSession, 'USER_UPDATED');
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+    await applySession(currentSession, "USER_UPDATED");
   };
 
-  return useMemo(() => ({
-    session,
-    user,
-    perfil,
-    isSuperAdmin,
-    loading,
-    perfilLoading, // <-- Agregado al retorno
-    logout,
-    refreshAuthData
-  }), [session, user, perfil, isSuperAdmin, loading, perfilLoading]);
+  const isBusiness = Boolean(perfil?.user_role === 'owner' || perfil?.user_role === 'staff' || perfil?.barberia_id);
+  const isBusinessLoading = perfilLoading;
+
+  return useMemo(
+    () => ({
+      session,
+      user,
+      perfil,
+      isSuperAdmin,
+      isBusiness,
+      isBusinessLoading,
+      loading,
+      perfilLoading,
+      logout,
+      refreshAuthData,
+    }),
+    [session, user, perfil, isSuperAdmin, isBusiness, isBusinessLoading, loading, perfilLoading],
+  );
 };

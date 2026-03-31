@@ -1,0 +1,977 @@
+nombre_funcion,tipo_retorno,codigo_fuente,lenguaje
+add_organization_admin,json,"
+DECLARE
+  v_new_user_id uuid;
+BEGIN
+  -- 1. Buscamos el ID del usuario basándonos en el email
+  SELECT id INTO v_new_user_id
+  FROM profiles
+  WHERE email = p_email_to_add;
+
+  IF v_new_user_id IS NULL THEN
+    RETURN json_build_object('success', false, 'message', 'El usuario no está registrado en la app.');
+  END IF;
+
+  -- 2. Insertamos en miembros (o actualizamos si ya estaba pero con otro rol)
+  INSERT INTO organization_members (organization_id, user_id, role)
+  VALUES (p_org_id, v_new_user_id, 'admin') -- Asignamos rol 'admin'
+  ON CONFLICT (organization_id, user_id) 
+  DO UPDATE SET role = 'admin'; -- Si ya era staff, lo subimos a admin
+
+  RETURN json_build_object('success', true, 'message', 'Usuario agregado como administrador.');
+END;
+",PLPGSQL
+admin_apply_subscription_adjustment,json,"
+DECLARE
+  v_uid uuid;
+  v_is_superadmin boolean := false;
+  v_sub public.subscriptions%ROWTYPE;
+  v_plan text;
+  v_current_plan text;
+  v_current_status text;
+  v_activity_status text;
+  v_internal_status text;
+  v_status_type text;
+  v_status_labels text[];
+  v_extra_days integer := greatest(coalesce(p_extra_days, 0), 0);
+  v_now timestamptz := now();
+  v_new_valid_until timestamptz;
+BEGIN
+  v_uid := auth.uid();
+
+  IF v_uid IS NULL THEN
+    RETURN json_build_object(
+      'success', false,
+      'message', 'No autenticado.'
+    );
+  END IF;
+
+  SELECT p.is_superadmin
+  INTO v_is_superadmin
+  FROM public.profiles p
+  WHERE p.id = v_uid;
+
+  IF coalesce(v_is_superadmin, false) = false THEN
+    RETURN json_build_object(
+      'success', false,
+      'message', 'Permisos insuficientes.'
+    );
+  END IF;
+
+  SELECT *
+  INTO v_sub
+  FROM public.subscriptions
+  WHERE id = p_subscription_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN json_build_object(
+      'success', false,
+      'message', 'Suscripcion no encontrada.'
+    );
+  END IF;
+
+  SELECT a.atttypid::regtype::text
+  INTO v_status_type
+  FROM pg_attribute a
+  WHERE a.attrelid = 'public.subscriptions'::regclass
+    AND a.attname = 'status'
+    AND NOT a.attisdropped;
+
+  SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+  INTO v_status_labels
+  FROM pg_attribute a
+  JOIN pg_enum e ON e.enumtypid = a.atttypid
+  WHERE a.attrelid = 'public.subscriptions'::regclass
+    AND a.attname = 'status'
+    AND NOT a.attisdropped;
+
+  IF v_status_type IS NULL OR v_status_labels IS NULL THEN
+    RETURN json_build_object(
+      'success', false,
+      'message', 'No se pudo resolver el tipo de estado de suscripciones.'
+    );
+  END IF;
+
+  v_current_status := lower(coalesce(v_sub.status::text, ''));
+
+  -- Plan actual real (si status usa trial/pro/enterprise, manda ese valor).
+  v_current_plan := CASE
+    WHEN v_current_status IN ('trial', 'pro', 'enterprise') THEN v_current_status
+    WHEN lower(coalesce(v_sub.plan_type, '')) IN ('trial', 'pro', 'enterprise') THEN lower(v_sub.plan_type)
+    ELSE 'pro'
+  END;
+
+  IF p_plan_type IS NULL OR trim(p_plan_type) = '' THEN
+    v_plan := v_current_plan;
+  ELSIF lower(trim(p_plan_type)) IN ('trial', 'pro', 'enterprise') THEN
+    v_plan := lower(trim(p_plan_type));
+  ELSE
+    RETURN json_build_object(
+      'success', false,
+      'message', 'Plan invalido.'
+    );
+  END IF;
+
+  -- Estado simplificado para frontend: active / inactive.
+  IF p_status IS NULL OR trim(p_status) = '' THEN
+    v_activity_status := CASE
+      WHEN v_current_status IN ('inactive', 'past_due', 'canceled', 'cancelled') THEN 'inactive'
+      ELSE 'active'
+    END;
+  ELSE
+    CASE lower(trim(p_status))
+      WHEN 'active' THEN v_activity_status := 'active';
+      WHEN 'inactive' THEN v_activity_status := 'inactive';
+      ELSE
+        RETURN json_build_object(
+          'success', false,
+          'message', 'Estado invalido. Usa active o inactive.'
+        );
+    END CASE;
+  END IF;
+
+  IF v_activity_status = 'inactive' THEN
+    IF 'inactive' = ANY(v_status_labels) THEN
+      v_internal_status := 'inactive';
+    ELSIF 'past_due' = ANY(v_status_labels) THEN
+      v_internal_status := 'past_due';
+    ELSIF 'canceled' = ANY(v_status_labels) THEN
+      v_internal_status := 'canceled';
+    ELSIF 'cancelled' = ANY(v_status_labels) THEN
+      v_internal_status := 'cancelled';
+    ELSE
+      RETURN json_build_object(
+        'success', false,
+        'message', 'El enum de status no tiene un valor para inactivo.'
+      );
+    END IF;
+  ELSE
+    IF v_plan = 'trial' AND 'trial' = ANY(v_status_labels) THEN
+      v_internal_status := 'trial';
+    ELSIF v_plan = 'pro' AND 'pro' = ANY(v_status_labels) THEN
+      v_internal_status := 'pro';
+    ELSIF v_plan = 'enterprise' AND 'enterprise' = ANY(v_status_labels) THEN
+      v_internal_status := 'enterprise';
+    ELSIF 'active' = ANY(v_status_labels) THEN
+      v_internal_status := 'active';
+    ELSIF 'trialing' = ANY(v_status_labels) THEN
+      v_internal_status := 'trialing';
+    ELSE
+      RETURN json_build_object(
+        'success', false,
+        'message', 'El enum de status no tiene un valor para activo.'
+      );
+    END IF;
+  END IF;
+
+  v_new_valid_until := v_sub.valid_until;
+
+  IF v_extra_days > 0 THEN
+    v_new_valid_until :=
+      (
+        CASE
+          WHEN v_new_valid_until IS NOT NULL AND v_new_valid_until > v_now THEN v_new_valid_until
+          ELSE v_now
+        END
+      )
+      + make_interval(days => v_extra_days);
+  END IF;
+
+  IF v_activity_status = 'active'
+     AND (v_new_valid_until IS NULL OR v_new_valid_until <= v_now) THEN
+    IF v_plan = 'trial' THEN
+      v_new_valid_until := v_now + interval '7 days';
+    ELSE
+      v_new_valid_until := v_now + interval '30 days';
+    END IF;
+  END IF;
+
+  EXECUTE format(
+    'UPDATE public.subscriptions
+     SET plan_type = $1,
+         status = $2::%s,
+         valid_until = $3
+     WHERE id = $4',
+    v_status_type
+  )
+  USING v_plan, v_internal_status, v_new_valid_until, p_subscription_id;
+
+  RETURN json_build_object(
+    'success', true,
+    'subscription_id', p_subscription_id,
+    'plan_type', v_plan,
+    'status', v_activity_status,
+    'internal_status', v_internal_status,
+    'valid_until', v_new_valid_until
+  );
+END;
+",PLPGSQL
+apply_schedule_template,json,"
+DECLARE
+  v_count int;
+BEGIN
+  -- 1. Validar seguridad (Opcional pero recomendado: chequear si el user actual es admin de esa org)
+  -- (Lo saltamos por brevedad, confiando en que la llamada viene de un contexto seguro o UI de admin)
+
+  -- 2. Limpiar el horario actual del empleado (Borron y cuenta nueva)
+  DELETE FROM staff_schedules WHERE staff_id = p_staff_id;
+
+  -- 3. Copiar los items de la plantilla a la tabla real del empleado
+  INSERT INTO staff_schedules (staff_id, day_of_week, start_time, end_time)
+  SELECT 
+    p_staff_id,
+    day_of_week,
+    start_time,
+    end_time
+  FROM schedule_template_items
+  WHERE template_id = p_template_id;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  RETURN json_build_object(
+    'success', true, 
+    'message', format('Se aplicó la plantilla y se crearon %s registros.', v_count)
+  );
+END;
+",PLPGSQL
+cancel_appointment,json,"BEGIN
+  UPDATE public.appointments
+  SET 
+    status = 'canceled',
+    deleted_at = now(),
+    updated_at = now()
+  WHERE id = p_appointment_id;
+
+  RETURN json_build_object('success', true, 'message', 'Turno cancelado y horario liberado.');
+END;",PLPGSQL
+check_appointment_overlap,trigger,"
+BEGIN
+  -- Si el turno está cancelado o borrado, lo dejamos pasar
+  IF NEW.status = 'canceled' OR NEW.deleted_at IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Buscamos si hay choque. 
+  -- Esta query es muy rápida porque usa el índice estándar de staff_id.
+  IF EXISTS (
+    SELECT 1 FROM public.appointments
+    WHERE staff_id = NEW.staff_id
+      AND id <> NEW.id -- Importante: No chocar con uno mismo al editar
+      AND status != 'canceled'
+      AND deleted_at IS NULL
+      -- Lógica de Solapamiento:
+      -- (NuevoInicio < ViejoFin) Y (NuevoFin > ViejoInicio)
+      AND (NEW.start_time < end_time AND NEW.end_time > start_time)
+  ) THEN
+    -- Simulamos el MISMO error de Postgres para que tu Frontend no note el cambio
+    RAISE EXCEPTION USING 
+      ERRCODE = '23P01',
+      MESSAGE = 'El horario seleccionado ya está ocupado.';
+  END IF;
+
+  RETURN NEW;
+END;
+",PLPGSQL
+check_expired_subscriptions,json,"
+DECLARE
+  v_count int;
+BEGIN
+  WITH expired AS (
+    UPDATE public.subscriptions
+    SET status = 'inactive'
+    WHERE status IN (
+        'trial',
+        'pro',
+        'enterprise'
+      )
+      AND valid_until IS NOT NULL
+      AND valid_until <= now()
+    RETURNING id
+  )
+  SELECT count(*) INTO v_count FROM expired;
+
+  RETURN json_build_object(
+    'success', true,
+    'marked_inactive', v_count
+  );
+END;
+",PLPGSQL
+check_is_superadmin,boolean,"
+begin
+  return exists (
+    select 1
+    from public.profiles p
+    where p.id = user_id
+      and p.is_superadmin = true
+  );
+end;
+",PLPGSQL
+create_appointment,json,"
+DECLARE
+  v_new_id uuid;
+  v_collision_count int;
+BEGIN
+  -- 1. Validación de colisión: ¿El barbero está ocupado en ese lapso?
+  -- (Ignoramos turnos cancelados)
+  SELECT count(*)
+  INTO v_collision_count
+  FROM appointments
+  WHERE staff_id = p_staff_id
+    AND status != 'canceled'
+    -- Lógica de superposición (Overlaps):
+    AND (start_time, end_time) OVERLAPS (p_start_time, p_end_time);
+
+  IF v_collision_count > 0 THEN
+    RETURN json_build_object(
+      'success', false,
+      'message', 'El horario seleccionado ya está ocupado.'
+    );
+  END IF;
+
+  -- 2. Si pasó la validación, insertamos
+  INSERT INTO appointments (
+    organization_id,
+    staff_id,
+    client_name,
+    client_phone,
+    start_time,
+    end_time,
+    notes,
+    status
+  ) VALUES (
+    p_org_id,
+    p_staff_id,
+    p_client_name,
+    p_client_phone,
+    p_start_time,
+    p_end_time,
+    p_notes,
+    'pending' -- Estado por defecto
+  )
+  RETURNING id INTO v_new_id;
+
+  -- 3. Retornamos éxito y el ID del turno
+  RETURN json_build_object(
+    'success', true,
+    'appointment_id', v_new_id,
+    'message', 'Turno reservado con éxito.'
+  );
+END;
+",PLPGSQL
+create_organization,json,"
+DECLARE
+  v_new_org_id uuid;
+  v_current_user uuid;
+BEGIN
+  -- Obtenemos el ID del usuario logueado
+  v_current_user := auth.uid();
+  
+  IF v_current_user IS NULL THEN
+     RETURN json_build_object('success', false, 'message', 'Usuario no autenticado');
+  END IF;
+
+  -- 1. Insertamos la Organización
+  INSERT INTO organizations (
+    name, slug, logo_url, industry, province_id, city_id, street, number
+  ) VALUES (
+    p_name, p_slug, p_logo_url, p_industry, p_province_id, p_city_id, p_street, p_number
+  )
+  RETURNING id INTO v_new_org_id;
+
+  -- 2. Insertamos al miembro (Dueño)
+  INSERT INTO organization_members (
+    organization_id, user_id, role
+  ) VALUES (
+    v_new_org_id, v_current_user, 'owner'
+  );
+
+  RETURN json_build_object(
+    'success', true, 
+    'organization_id', v_new_org_id,
+    'message', 'Organización creada exitosamente.'
+  );
+
+EXCEPTION 
+  WHEN unique_violation THEN
+    RETURN json_build_object('success', false, 'message', 'El identificador (URL) ya existe, probá con otro.');
+  WHEN others THEN
+    RETURN json_build_object('success', false, 'message', SQLERRM);
+END;
+",PLPGSQL
+get_all_subscriptions_report,record,"
+BEGIN
+  RETURN QUERY
+  SELECT 
+    o.name as org_name,
+    s.plan_type,
+    s.status,
+    s.valid_until,
+    -- Opcional: intentamos buscar el email del dueño (owner) para contactarlo
+    (SELECT p.email 
+     FROM organization_members om 
+     JOIN profiles p ON om.user_id = p.id 
+     WHERE om.organization_id = o.id AND om.role = 'owner' -- Asumiendo que 'owner' es un valor de tu enum app_role
+     LIMIT 1) as contact_email
+  FROM subscriptions s
+  JOIN organizations o ON s.organization_id = o.id
+  ORDER BY s.status DESC, s.valid_until ASC;
+END;
+",PLPGSQL
+get_appointment_details,record,"
+BEGIN
+  RETURN QUERY
+  SELECT 
+    a.id,
+    -- Formateo de fecha y hora directamente desde SQL (opcional, pero útil)
+    to_char(a.start_time, 'DD/MM/YYYY') as fecha, 
+    to_char(a.start_time, 'HH24:MI') as horario_inicio,
+    to_char(a.end_time, 'HH24:MI') as horario_fin,
+    -- Calculamos la duración restando timestamps y extrayendo minutos
+    EXTRACT(EPOCH FROM (a.end_time - a.start_time))::int / 60 as duracion_minutos,
+    a.client_name,
+    a.client_phone,
+    a.status,
+    s.name as barbero_nombre,
+    a.notes
+  FROM appointments a
+  LEFT JOIN staff s ON a.staff_id = s.id
+  WHERE a.id = p_appointment_id;
+END;
+",PLPGSQL
+get_cities_by_province,record,"
+BEGIN
+  RETURN QUERY
+  SELECT c.id, c.name
+  FROM cities c
+  WHERE c.province_id = p_province_id
+  ORDER BY c.name ASC;
+END;
+",PLPGSQL
+get_org_subscription_status,json,"
+DECLARE
+  v_result json;
+BEGIN
+  SELECT json_build_object(
+    'plan_type', s.plan_type,
+    'status', s.status,
+    'valid_until', s.valid_until,
+    'is_valid', (
+      s.status IN ('trial', 'pro', 'enterprise')
+      AND (s.valid_until IS NULL OR s.valid_until > now())
+    )
+  )
+  INTO v_result
+  FROM public.subscriptions s
+  JOIN public.organization_members om ON om.user_id = s.user_id
+  WHERE om.organization_id = p_org_id
+    AND om.role = 'owner'
+  ORDER BY om.created_at ASC
+  LIMIT 1;
+
+  IF v_result IS NULL THEN
+    RETURN json_build_object(
+      'plan_type', 'pro',
+      'status', 'inactive',
+      'is_valid', false
+    );
+  END IF;
+
+  RETURN v_result;
+END;
+",PLPGSQL
+get_organization_details,record,"
+BEGIN
+  RETURN QUERY
+  SELECT 
+    o.id,
+    o.name,
+    o.slug,
+    o.logo_url,
+    p.name as provincia,
+    c.name as ciudad,
+    concat(o.street, ' ', o.number) as direccion_completa,
+    to_char(o.created_at, 'DD/MM/YYYY') as fecha_creacion
+  FROM organizations o
+  LEFT JOIN provinces p ON o.province_id = p.id
+  LEFT JOIN cities c ON o.city_id = c.id
+  WHERE o.id = p_org_id;
+END;
+",PLPGSQL
+get_profile_subscription_status,json,"
+DECLARE
+  v_org_id uuid;
+  v_result json;
+BEGIN
+  -- 1. Identificamos de qué Organización es DUEÑO este usuario
+  -- Buscamos en la tabla de miembros donde el rol sea 'owner'
+  SELECT organization_id INTO v_org_id
+  FROM organization_members
+  WHERE user_id = p_user_id
+  AND role = 'owner'
+  LIMIT 1; -- En caso de que tenga varias, agarramos la primera
+
+  -- Si el usuario no es dueño de nada (es empleado o cliente), devolvemos ""free""
+  IF v_org_id IS NULL THEN
+    RETURN json_build_object(
+      'plan_type', 'free',
+      'status', 'no_organization',
+      'is_valid', false,
+      'message', 'El usuario no es dueño de ninguna barbería.'
+    );
+  END IF;
+
+  -- 2. Buscamos la suscripción de esa organización
+  SELECT json_build_object(
+    'organization_id', s.organization_id,
+    'plan_type', s.plan_type,
+    'status', s.status,
+    'valid_until', s.valid_until,
+    -- Calculamos si está al día (Activo o en Trial y fecha futura)
+    'is_valid', (
+        s.status IN ('active', 'trialing') 
+        AND (s.valid_until IS NULL OR s.valid_until > now())
+    )
+  ) INTO v_result
+  FROM subscriptions s
+  WHERE s.organization_id = v_org_id;
+
+  -- 3. Si tiene organización pero nunca se generó suscripción (caso raro de error)
+  IF v_result IS NULL THEN
+    RETURN json_build_object(
+      'plan_type', 'free',
+      'status', 'inactive',
+      'is_valid', false,
+      'message', 'Organización encontrada pero sin suscripción activa.'
+    );
+  END IF;
+
+  RETURN v_result;
+END;
+",PLPGSQL
+get_provinces,record,"
+BEGIN
+  RETURN QUERY
+  SELECT p.id, p.name
+  FROM provinces p
+  ORDER BY p.name ASC;
+END;
+",PLPGSQL
+get_staff_working_hours,record,"
+DECLARE
+  v_override_exists boolean;
+  v_is_working_day boolean;
+  v_dow int;
+  v_is_active boolean;
+  v_deleted_at timestamptz;
+BEGIN
+  -- 0. CHEQUEO DE SEGURIDAD (Nuevo paso)
+  -- Verificamos si el empleado está habilitado para trabajar
+  SELECT is_active, deleted_at 
+  INTO v_is_active, v_deleted_at
+  FROM staff 
+  WHERE id = p_staff_id;
+
+  -- Si no existe, está inactivo (baja lógica) o está borrado (baja física)...
+  IF v_is_active IS NOT TRUE OR v_deleted_at IS NOT NULL THEN
+    -- ... devolvemos vacío (No disponible) y terminamos.
+    RETURN;
+  END IF;
+
+  -- (El resto de la función sigue igual que antes...)
+  
+  -- 1. Verificar excepciones
+  SELECT 
+    EXISTS(SELECT 1 FROM staff_date_overrides WHERE staff_id = p_staff_id AND work_date = p_date),
+    is_working_day
+  INTO 
+    v_override_exists, 
+    v_is_working_day
+  FROM staff_date_overrides 
+  WHERE staff_id = p_staff_id AND work_date = p_date;
+
+  IF v_override_exists THEN
+    IF v_is_working_day THEN
+      RETURN QUERY 
+      SELECT sdo.start_time, sdo.end_time 
+      FROM staff_date_overrides sdo
+      WHERE sdo.staff_id = p_staff_id AND sdo.work_date = p_date;
+    ELSE
+      RETURN; 
+    END IF;
+  ELSE
+    v_dow := extract(dow from p_date)::int;
+    RETURN QUERY 
+    SELECT ss.start_time, ss.end_time 
+    FROM staff_schedules ss
+    WHERE ss.staff_id = p_staff_id AND ss.day_of_week = v_dow;
+  END IF;
+END;
+",PLPGSQL
+get_user_organizations,record,"
+BEGIN
+  RETURN QUERY
+  SELECT 
+    om.organization_id,
+    o.name,
+    o.slug,
+    o.logo_url,
+    om.role
+  FROM organization_members om
+  JOIN organizations o ON om.organization_id = o.id
+  WHERE om.user_id = p_user_id;
+END;
+",PLPGSQL
+get_user_role,text,"
+DECLARE
+  v_role app_role; -- Variable para guardar el rol (tipo enum definido en tu base)
+BEGIN
+  -- Buscamos el rol en la tabla intermedia
+  SELECT role INTO v_role
+  FROM organization_members
+  WHERE user_id = p_user_id
+  AND organization_id = p_org_id;
+
+  -- Si no encuentra nada, devuelve NULL, si encuentra, devuelve el rol como texto
+  RETURN v_role::text;
+END;
+",PLPGSQL
+guard_saas_invitation_email,trigger,"
+BEGIN
+  NEW.email := lower(trim(NEW.email));
+
+  IF NEW.email IS NULL OR NEW.email = '' THEN
+    RAISE EXCEPTION USING MESSAGE = 'El correo es obligatorio.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    JOIN public.subscriptions s ON s.user_id = p.id
+    WHERE lower(p.email) = NEW.email
+  ) THEN
+    RAISE EXCEPTION USING MESSAGE = 'Ese correo ya tiene una suscripcion.';
+  END IF;
+
+  RETURN NEW;
+END;
+",PLPGSQL
+handle_first_organization_bonus,trigger,"
+DECLARE
+  v_sub_exists boolean;
+BEGIN
+  IF NEW.role <> 'owner' THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.subscriptions
+    WHERE user_id = NEW.user_id
+  ) INTO v_sub_exists;
+
+  IF NOT v_sub_exists THEN
+    INSERT INTO public.subscriptions (user_id, plan_type, status, valid_until)
+    VALUES (
+      NEW.user_id,
+      'pro',
+      'trial',
+      now() + interval '7 days'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+",PLPGSQL
+handle_new_user,trigger,"
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, avatar_url, phone, is_superadmin)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.email),
+    NEW.raw_user_meta_data->>'avatar_url',
+    COALESCE(NEW.phone, NEW.raw_user_meta_data->>'phone'),
+    false
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET
+    email = EXCLUDED.email,
+    full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
+    phone = COALESCE(EXCLUDED.phone, public.profiles.phone),
+    updated_at = now();
+
+  RETURN NEW;
+END;
+",PLPGSQL
+handle_saas_invitation_acceptance,trigger,"
+DECLARE
+  v_invitation public.saas_invitations%ROWTYPE;
+  v_paid_plan text;
+BEGIN
+  -- Ensure profile exists regardless of trigger execution order on auth.users.
+  INSERT INTO public.profiles (id, email, full_name, avatar_url, phone, is_superadmin)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.email),
+    NEW.raw_user_meta_data->>'avatar_url',
+    COALESCE(NEW.phone, NEW.raw_user_meta_data->>'phone'),
+    false
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  SELECT *
+  INTO v_invitation
+  FROM public.saas_invitations
+  WHERE lower(email) = lower(NEW.email)
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_invitation IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF lower(coalesce(v_invitation.status, '')) IN ('inactive', 'revoked', 'blocked', 'banned') THEN
+    RETURN NEW;
+  END IF;
+
+  v_paid_plan := CASE
+    WHEN lower(coalesce(v_invitation.plan_type, '')) = 'enterprise' THEN 'enterprise'
+    ELSE 'pro'
+  END;
+
+  INSERT INTO public.subscriptions (user_id, plan_type, status, valid_until)
+  VALUES (
+    NEW.id,
+    v_paid_plan,
+    'trial',
+    now() + interval '7 days'
+  )
+  ON CONFLICT (user_id) DO UPDATE
+  SET
+    plan_type = EXCLUDED.plan_type,
+    status = 'trial',
+    valid_until = now() + interval '7 days';
+
+  DELETE FROM public.saas_invitations
+  WHERE id = v_invitation.id;
+
+  RETURN NEW;
+END;
+",PLPGSQL
+handle_subscription_reactivation,trigger,"
+DECLARE
+  v_status text := lower(coalesce(NEW.status::text, ''));
+  v_plan text := lower(coalesce(NEW.plan_type, ''));
+BEGIN
+  IF v_status = 'enterprise' THEN
+    NEW.plan_type := 'enterprise';
+  ELSIF v_status = 'pro' THEN
+    NEW.plan_type := 'pro';
+  ELSIF v_status IN ('trial', 'trialing') THEN
+    IF v_plan NOT IN ('trial', 'pro', 'enterprise') THEN
+      NEW.plan_type := 'trial';
+    END IF;
+  ELSIF v_status = 'active' THEN
+    IF v_plan NOT IN ('trial', 'pro', 'enterprise') THEN
+      NEW.plan_type := 'pro';
+    END IF;
+  END IF;
+
+  IF v_status IN ('trial', 'trialing') THEN
+    IF NEW.valid_until IS NULL OR NEW.valid_until <= now() THEN
+      NEW.valid_until := now() + interval '7 days';
+    END IF;
+  ELSIF v_status IN ('pro', 'enterprise') THEN
+    IF NEW.valid_until IS NULL OR NEW.valid_until <= now() THEN
+      NEW.valid_until := now() + interval '30 days';
+    END IF;
+  ELSIF v_status = 'active' THEN
+    IF NEW.valid_until IS NULL OR NEW.valid_until <= now() THEN
+      IF lower(coalesce(NEW.plan_type, '')) = 'trial' THEN
+        NEW.valid_until := now() + interval '7 days';
+      ELSE
+        NEW.valid_until := now() + interval '30 days';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+",PLPGSQL
+is_superadmin,boolean,"
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = user_id -- Usamos el parámetro explícito
+    AND is_superadmin = true
+  );
+END;
+",PLPGSQL
+procesar_pago,json,"
+DECLARE
+  v_sub_id uuid;
+  v_old_date timestamptz;
+  v_new_date timestamptz;
+BEGIN
+  -- 1. Obtenemos la fecha actual de vencimiento
+  SELECT id, valid_until INTO v_sub_id, v_old_date
+  FROM subscriptions
+  WHERE organization_id = p_org_id;
+
+  IF v_sub_id IS NULL THEN
+    RETURN json_build_object('success', false, 'message', 'Organización sin suscripción inicial.');
+  END IF;
+
+  -- 2. Calculamos la nueva fecha (Lógica de Negocio)
+  IF v_old_date > now() THEN
+    -- CASO A: Usuario precavido (Paga antes de que venza) -> Sumamos 1 mes a su fecha futura
+    v_new_date := v_old_date + interval '1 month';
+  ELSE
+    -- CASO B: Usuario vencido (Reactiva) -> 1 mes desde HOY
+    v_new_date := now() + interval '1 month';
+  END IF;
+
+  -- 3. Actualizamos la tabla
+  UPDATE subscriptions
+  SET 
+    status = 'active',
+    plan_type = 'pro',
+    valid_until = v_new_date,
+    updated_at = now()
+  WHERE id = v_sub_id;
+
+  RETURN json_build_object(
+    'success', true, 
+    'new_valid_until', v_new_date,
+    'message', 'Pago procesado y fecha extendida.'
+  );
+END;
+",PLPGSQL
+soft_delete_appointment,json,"
+BEGIN
+  UPDATE appointments
+  SET 
+    deleted_at = now(),      -- Marcamos cuándo se borró
+    status = 'canceled',    -- Opcional: Cambiamos estado a cancelado para consistencia semántica
+    updated_at = now()
+  WHERE id = p_appointment_id
+  AND deleted_at IS NULL;    -- Evitamos borrar algo que ya estaba borrado
+
+  IF NOT FOUND THEN
+     RETURN json_build_object('success', false, 'message', 'El turno no existe o ya fue eliminado.');
+  END IF;
+
+  RETURN json_build_object('success', true, 'message', 'Turno eliminado correctamente.');
+END;
+",PLPGSQL
+update_appointment,json,"
+DECLARE
+  v_old_staff uuid;
+  v_old_start timestamptz;
+  v_old_end timestamptz;
+  v_new_staff uuid;
+  v_new_start timestamptz;
+  v_new_end timestamptz;
+  v_conflict_count int;
+BEGIN
+  -- 1. Recuperamos los datos actuales del turno
+  SELECT staff_id, start_time, end_time
+  INTO v_old_staff, v_old_start, v_old_end
+  FROM appointments
+  WHERE id = p_appointment_id;
+
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'message', 'El turno no existe.');
+  END IF;
+
+  -- 2. Definimos los nuevos valores (Si el parametro es NULL, usamos el viejo)
+  v_new_staff := COALESCE(p_staff_id, v_old_staff);
+  v_new_start := COALESCE(p_start_time, v_old_start);
+  v_new_end   := COALESCE(p_end_time, v_old_end);
+
+  -- 3. VALIDACIÓN DE DISPONIBILIDAD
+  -- Solo chequeamos si cambió el Barbero O el Horario
+  IF (v_new_staff != v_old_staff) OR (v_new_start != v_old_start) OR (v_new_end != v_old_end) THEN
+    
+    -- Si el estado nuevo (o el actual) es 'canceled', no hace falta validar disponibilidad
+    IF COALESCE(p_status, 'pending') != 'canceled' THEN
+        SELECT count(*) INTO v_conflict_count
+        FROM appointments
+        WHERE staff_id = v_new_staff
+          AND id != p_appointment_id      -- IMPORTANTE: No chocar con uno mismo
+          AND status != 'canceled'       -- Ignoramos los cancelados
+          AND (start_time, end_time) OVERLAPS (v_new_start, v_new_end);
+
+        IF v_conflict_count > 0 THEN
+          RETURN json_build_object('success', false, 'message', 'El nuevo horario o barbero no está disponible.');
+        END IF;
+    END IF;
+  END IF;
+
+  -- 4. Ejecutamos la actualización
+  UPDATE appointments
+  SET
+    staff_id = v_new_staff,
+    start_time = v_new_start,
+    end_time = v_new_end,
+    client_name = COALESCE(p_client_name, client_name),
+    client_phone = COALESCE(p_client_phone, client_phone),
+    status = COALESCE(p_status, status),
+    notes = COALESCE(p_notes, notes),
+    updated_at = now()
+  WHERE id = p_appointment_id;
+
+  RETURN json_build_object(
+    'success', true, 
+    'message', 'Turno actualizado correctamente.'
+  );
+END;
+",PLPGSQL
+update_organization,json,"
+BEGIN
+  -- Validar permisos aquí sería ideal (ej: chequear si auth.uid() es admin de p_org_id)
+  -- Por brevedad, asumimos que la RLS o el front lo maneja, pero lo correcto es usar get_user_role()
+
+  UPDATE organizations
+  SET
+    name = COALESCE(p_name, name),
+    logo_url = COALESCE(p_logo_url, logo_url),
+    province_id = COALESCE(p_province_id, province_id),
+    city_id = COALESCE(p_city_id, city_id),
+    street = COALESCE(p_street, street),
+    number = COALESCE(p_number, number),
+    updated_at = now()
+  WHERE id = p_org_id;
+
+  RETURN json_build_object('success', true, 'message', 'Datos actualizados.');
+END;
+",PLPGSQL
+update_profile,json,"
+DECLARE
+  v_user_id uuid;
+BEGIN
+  -- Obtenemos el ID del usuario actual
+  v_user_id := auth.uid();
+
+  IF v_user_id IS NULL THEN
+    RETURN json_build_object('success', false, 'message', 'Usuario no logueado.');
+  END IF;
+
+  -- Hacemos un UPSERT con los nuevos datos
+  INSERT INTO profiles (id, full_name, avatar_url, phone, updated_at)
+  VALUES (v_user_id, p_full_name, p_avatar_url, p_phone, now())
+  ON CONFLICT (id)
+  DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    avatar_url = EXCLUDED.avatar_url,
+    phone = EXCLUDED.phone,
+    updated_at = now();
+
+  RETURN json_build_object('success', true, 'message', 'Perfil actualizado correctamente.');
+END;
+",PLPGSQL

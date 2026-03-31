@@ -3,14 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'sonner';
 
 import { AuthProvider, useAuth } from './context/AuthContext'; 
-import { ThemeProvider } from './context/ThemeContext';
+import { LocationProvider } from './context/LocationContext';
 
 import Header from './components/Header/Header'; 
 import Footer from './components/Footer/Footer';
 import HomeLoader from './components/Loaders/HomeLoader';
 
 import ScrollToTop from './utils/ScrollToTop';
-import { SuperAdminRoute, DashboardRoute } from './utils/ProtectedRoutes';
+import { SuperAdminRoute, DashboardRoute, BusinessRoute, ProtectedRoute } from './utils/ProtectedRoutes';
 
 import Home from './pages/Home/Home';
 import AuthPortal from './pages/Auth/Portal/Portal';
@@ -20,22 +20,27 @@ import SuperAdminDashboard from './pages/SuperAdmin/Dashboard';
 import OrganizationDashboard from './pages/Organization/Dashboard';
 import Welcome from './pages/Welcome/Welcome';
 import UserPanel from './pages/UserPanel/UserPanel';
+import MisTurnos from './pages/MisTurnos/MisTurnos';
+import PublicBooking from './pages/PublicBooking/PublicBooking';
 import Onboarding from './pages/Onboarding/Onboarding';
 
 import NotFoundPage from './pages/NotFound/404';
 import { isSuperAdminUser } from './utils/superAdmin';
 
 function AppContent() {
-  const { user, perfil, loading, isSuperAdmin, perfilLoading } = useAuth();
+  const { user, perfil, loading, isSuperAdmin, perfilLoading, isBusiness, isBusinessLoading } = useAuth();
   const isSuperAdminEffective = Boolean(
     isSuperAdmin || isSuperAdminUser({ user, profile: perfil })
   );
   
-  if (loading) {
+  if (loading || isBusinessLoading) {
     return <HomeLoader />;
   }
 
-  const getRedirectPath = () => isSuperAdminEffective ? "/admin" : "/dashboard";
+  const getRedirectPath = () => {
+    if (isSuperAdminEffective) return '/admin';
+    return isBusiness ? '/dashboard' : '/';
+  };
 
   const renderPublicEntry = (fallbackElement) => {
     if (!user) return fallbackElement;
@@ -44,16 +49,16 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#050507] text-slate-900 dark:text-gray-200 font-sans flex flex-col transition-colors duration-500">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
       <ScrollToTop />
       <Header /> 
       
-      <main className="pt-24 min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-500">
+      <main className="pt-24 min-h-screen bg-slate-100">
         <div className="flex-1">
           <Routes>
             <Route 
               path="/" 
-              element={renderPublicEntry(<Home />)} 
+              element={<Home />} 
             />
             
             <Route 
@@ -64,6 +69,11 @@ function AppContent() {
               path="/registro" 
               element={renderPublicEntry(<AuthPortal />)} 
             />
+
+            <Route 
+              path="/reserva/:slug" 
+              element={<PublicBooking />} 
+            />
             
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -72,9 +82,13 @@ function AppContent() {
               <Route path="/admin" element={<SuperAdminDashboard />} />
             </Route>
 
-            <Route element={<DashboardRoute />}>
+            <Route element={<BusinessRoute />}>
               <Route path="/dashboard" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <UserPanel />} />
               <Route path="/dashboard/:slug" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
+            </Route>
+            
+            <Route element={<ProtectedRoute />}>
+              <Route path="/mis-turnos" element={<MisTurnos />} />
             </Route>
 
             <Route path="/welcome" element={<Welcome />} />
@@ -92,18 +106,18 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <LocationProvider>
         <Router>
-           <AppContent />
-           <Toaster 
-             richColors 
-             position="bottom-right" 
-             closeButton={false}
-             duration={3000}
-           />
+            <AppContent />
+            <Toaster 
+              richColors 
+              position="bottom-right" 
+              closeButton={false}
+              duration={3000}
+            />
         </Router>
-      </AuthProvider>
-    </ThemeProvider>
+      </LocationProvider>
+    </AuthProvider>
   );
 }

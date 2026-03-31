@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 
+.whatsapp-bot
+.wwebjs_auth/
+.wwebjs_cache/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -88,3 +88,77 @@ export const addOrganizationAdmin = async (orgId, emailToAdd) => {
     return { data: null, error };
   }
 };
+
+export const getOrganizationBySlug = async (slug) => {
+  try {
+    if (!slug) throw new Error('Slug requerido');
+    
+    const { data, error } = await supabase
+      .from('organizations')
+      .select(`
+        *,
+        cities:city_id(name),
+        provinces:province_id(name)
+      `)
+      .eq('slug', slug)
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error en getOrganizationBySlug:', error);
+    return { data: null, error };
+  }
+};
+
+export const getIndustries = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('industries')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return { data: data || [], error: null };
+  } catch (error) {
+    console.error('Error en getIndustries:', error);
+    return { data: [], error };
+  }
+};
+
+export const getExploreOrganizations = async ({ searchQuery = '', category = null, provinceId = null, cityId = null }) => {
+  try {
+    let query = supabase
+      .from('organizations')
+      .select(`
+        *,
+        cities:city_id(name),
+        provinces:province_id(name)
+      `);
+
+    if (category && category !== 'todos') {
+      query = query.eq('industry', category);
+    }
+    
+    if (searchQuery) {
+      query = query.ilike('name', `%${searchQuery}%`);
+    }
+
+    if (provinceId) {
+      query = query.eq('province_id', provinceId);
+    }
+
+    if (cityId) {
+      query = query.eq('city_id', cityId);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    return { data: data || [], error: null };
+  } catch (error) {
+    console.error('Error en getExploreOrganizations:', error);
+    return { data: [], error };
+  }
+};

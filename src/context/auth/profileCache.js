@@ -1,7 +1,7 @@
-const PROFILE_CACHE_PREFIX = 'kronix.profile.';
+const PROFILE_CACHE_PREFIX = "kronix.profile.";
 
 const safeGetLS = (key) => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     return window.localStorage.getItem(key);
   } catch {
@@ -10,7 +10,7 @@ const safeGetLS = (key) => {
 };
 
 const safeSetLS = (key, value) => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(key, value);
   } catch {
@@ -19,7 +19,7 @@ const safeSetLS = (key, value) => {
 };
 
 const safeRemoveLS = (key) => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(key);
   } catch {
@@ -27,7 +27,8 @@ const safeRemoveLS = (key) => {
   }
 };
 
-export const getProfileCacheKey = (userId) => `${PROFILE_CACHE_PREFIX}${userId}`;
+export const getProfileCacheKey = (userId) =>
+  `${PROFILE_CACHE_PREFIX}${userId}`;
 
 export const readCachedProfile = (userId) => {
   const raw = safeGetLS(getProfileCacheKey(userId));

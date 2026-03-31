@@ -1,0 +1,48 @@
+tabla,nombre_policy,operacion,roles_afectados,condicion_using,condicion_check
+appointments,Anon crea turnos,INSERT,{anon},null,true
+appointments,Dueño gestiona turnos,ALL,{authenticated},"(EXISTS ( SELECT 1
+   FROM organization_members om
+  WHERE ((om.organization_id = appointments.organization_id) AND (om.user_id = auth.uid()))))",null
+appointments,Solo admins borran turnos,DELETE,{public},"(get_user_role(auth.uid(), organization_id) = ANY (ARRAY['admin'::text, 'owner'::text]))",null
+cities,Lectura pública Ciudades,SELECT,{public},true,null
+cities,Lectura pública de ciudades,SELECT,"{anon,authenticated}",true,null
+invitacion_saas,Admins crean invitaciones,INSERT,{authenticated},null,"(get_user_role(auth.uid(), organization_id) = ANY (ARRAY['admin'::text, 'owner'::text]))"
+organizations,Lectura pública de Barbers,SELECT,{public},true,null
+organizations,Miembros editan su org,UPDATE,{authenticated},"(EXISTS ( SELECT 1
+   FROM organization_members om
+  WHERE ((om.organization_id = organizations.id) AND (om.user_id = auth.uid()) AND (om.role = ANY (ARRAY['admin'::app_role, 'owner'::app_role])))))",null
+profiles,Lectura de Perfiles,SELECT,{authenticated},((auth.uid() = id) OR check_is_superadmin(auth.uid())),null
+profiles,Sistema crea perfiles,INSERT,{public},null,true
+profiles,Usuario edita su perfil,UPDATE,{public},(auth.uid() = id),null
+profiles,Usuario edita su propio perfil,UPDATE,{public},(auth.uid() = id),null
+profiles,Usuario inserta su perfil,INSERT,{public},null,(auth.uid() = id)
+profiles,Ver perfiles públicos,SELECT,{authenticated},true,null
+provinces,Lectura pública Provincias,SELECT,{public},true,null
+provinces,Lectura pública de provincias,SELECT,"{anon,authenticated}",true,null
+saas_invitations,Public read for validation,SELECT,{public},true,null
+saas_invitations,Superadmins gestionan invitaciones,ALL,{public},check_is_superadmin(auth.uid()),null
+schedule_template_items,Admins gestionan items de templates,ALL,{authenticated},"(EXISTS ( SELECT 1
+   FROM (schedule_templates st
+     JOIN organization_members om ON ((st.organization_id = om.organization_id)))
+  WHERE ((st.id = schedule_template_items.template_id) AND (om.user_id = auth.uid()) AND (om.role = ANY (ARRAY['admin'::app_role, 'owner'::app_role])))))",null
+schedule_templates,Gestionar mis templates,ALL,{authenticated},"((organization_id IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM organization_members om
+  WHERE ((om.organization_id = schedule_templates.organization_id) AND (om.user_id = auth.uid()) AND (om.role = ANY (ARRAY['admin'::app_role, 'owner'::app_role]))))))",null
+schedule_templates,Ver templates disponibles,SELECT,{authenticated},"((organization_id IS NULL) OR (EXISTS ( SELECT 1
+   FROM organization_members om
+  WHERE ((om.organization_id = schedule_templates.organization_id) AND (om.user_id = auth.uid())))))",null
+staff,Admin gestiona staff,ALL,{authenticated},"(EXISTS ( SELECT 1
+   FROM organization_members om
+  WHERE ((om.organization_id = staff.organization_id) AND (om.user_id = auth.uid()) AND (om.role = ANY (ARRAY['admin'::app_role, 'owner'::app_role])))))",null
+staff,Ver staff activo,SELECT,{public},(is_active = true),null
+staff_date_overrides,Admin gestiona excepciones,ALL,{authenticated},"(EXISTS ( SELECT 1
+   FROM (staff s
+     JOIN organization_members om ON ((s.organization_id = om.organization_id)))
+  WHERE ((s.id = staff_date_overrides.staff_id) AND (om.user_id = auth.uid()) AND (om.role = ANY (ARRAY['admin'::app_role, 'owner'::app_role])))))",null
+staff_date_overrides,Lectura pública de excepciones,SELECT,{public},true,null
+staff_schedules,Admin gestiona horarios,ALL,{authenticated},"(EXISTS ( SELECT 1
+   FROM (staff s
+     JOIN organization_members om ON ((s.organization_id = om.organization_id)))
+  WHERE ((s.id = staff_schedules.staff_id) AND (om.user_id = auth.uid()) AND (om.role = ANY (ARRAY['admin'::app_role, 'owner'::app_role])))))",null
+staff_schedules,Ver horarios staff,SELECT,{public},true,null
+subscriptions,Usuarios ven su propia suscripcion,ALL,{public},(auth.uid() = user_id),null

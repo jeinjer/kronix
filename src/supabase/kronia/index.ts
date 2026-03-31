@@ -38,7 +38,8 @@ const addDaysStr = (dateStr: string, days: number) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const toTs = (dateStr: string, timeHHMM: string) => `${dateStr}T${timeHHMM}:00${TZ_OFFSET}`;
+const toTs = (dateStr: string, timeHHMM: string) =>
+  `${dateStr}T${timeHHMM}:00${TZ_OFFSET}`;
 
 const rangeForDate = (dateStr: string) => {
   const start = `${dateStr}T00:00:00${TZ_OFFSET}`;
@@ -132,14 +133,16 @@ async function buildSlotsForDay(supabase: any, dateStr: string) {
       const inBreak = breaks.some((b: any) => {
         const bStart = minutesFromHHMM(String(b.start_time).slice(0, 5));
         const bEnd = minutesFromHHMM(String(b.end_time).slice(0, 5));
-        return t < bEnd && (t + SLOT_MINUTES) > bStart;
+        return t < bEnd && t + SLOT_MINUTES > bStart;
       });
       if (inBreak) continue;
 
       const slotStart = new Date(toTs(dateStr, slotStartHHMM));
       const slotEnd = new Date(toTs(dateStr, slotEndHHMM));
 
-      const collides = taken.some((x) => overlaps(slotStart, slotEnd, x.start, x.end));
+      const collides = taken.some((x) =>
+        overlaps(slotStart, slotEnd, x.start, x.end),
+      );
       if (collides) continue;
 
       // Excluir slots pasados (hoy)
@@ -153,7 +156,8 @@ async function buildSlotsForDay(supabase: any, dateStr: string) {
 }
 
 Deno.serve(async (req) => {
-  if (!TELEGRAM_TOKEN) return new Response("Missing TELEGRAM_BOT_TOKEN", { status: 500 });
+  if (!TELEGRAM_TOKEN)
+    return new Response("Missing TELEGRAM_BOT_TOKEN", { status: 500 });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -164,7 +168,8 @@ Deno.serve(async (req) => {
   const message = update.message;
   const callbackQuery = update.callback_query;
 
-  const chatId: number | undefined = message?.chat?.id || callbackQuery?.message?.chat?.id;
+  const chatId: number | undefined =
+    message?.chat?.id || callbackQuery?.message?.chat?.id;
   if (!chatId) return new Response("ok");
 
   const data: string | undefined = callbackQuery?.data;
@@ -179,7 +184,12 @@ Deno.serve(async (req) => {
       [{ text: "Agendar turno", callback_data: "agendar_paso_1" }],
       [{ text: "Mis turnos / Cancelar", callback_data: "consultar_turnos" }],
     ];
-    await responder(chatId, "¿Qué querés hacer?", botones, callbackQuery?.message?.message_id ?? null);
+    await responder(
+      chatId,
+      "¿Qué querés hacer?",
+      botones,
+      callbackQuery?.message?.message_id ?? null,
+    );
     return new Response("ok");
   }
 
@@ -196,7 +206,12 @@ Deno.serve(async (req) => {
       botones.push([{ text: fechaIso, callback_data: `dia_${fechaIso}` }]);
     }
     botones.push([{ text: "Volver", callback_data: "menu_principal" }]);
-    await responder(chatId, "Seleccioná el día:", botones, callbackQuery?.message?.message_id ?? null);
+    await responder(
+      chatId,
+      "Seleccioná el día:",
+      botones,
+      callbackQuery?.message?.message_id ?? null,
+    );
     return new Response("ok");
   }
 
@@ -210,23 +225,38 @@ Deno.serve(async (req) => {
       slots = await buildSlotsForDay(supabase, fecha);
     } catch (e) {
       console.error(e);
-      await responder(chatId, "No pude consultar disponibilidad. Intentá más tarde.", [
-        [{ text: "Volver", callback_data: "menu_principal" }],
-      ], callbackQuery?.message?.message_id ?? null);
+      await responder(
+        chatId,
+        "No pude consultar disponibilidad. Intentá más tarde.",
+        [[{ text: "Volver", callback_data: "menu_principal" }]],
+        callbackQuery?.message?.message_id ?? null,
+      );
       return new Response("ok");
     }
 
     if (slots.length === 0) {
-      await responder(chatId, `Sin horarios disponibles para ${fecha}.`, [
-        [{ text: "Cambiar fecha", callback_data: "agendar_paso_1" }],
-        [{ text: "Volver", callback_data: "menu_principal" }],
-      ], callbackQuery?.message?.message_id ?? null);
+      await responder(
+        chatId,
+        `Sin horarios disponibles para ${fecha}.`,
+        [
+          [{ text: "Cambiar fecha", callback_data: "agendar_paso_1" }],
+          [{ text: "Volver", callback_data: "menu_principal" }],
+        ],
+        callbackQuery?.message?.message_id ?? null,
+      );
       return new Response("ok");
     }
 
-    const botones = slots.map((hhmm) => [{ text: hhmm, callback_data: `hora_${fecha}_${hhmm}` }]);
+    const botones = slots.map((hhmm) => [
+      { text: hhmm, callback_data: `hora_${fecha}_${hhmm}` },
+    ]);
     botones.push([{ text: "Cambiar fecha", callback_data: "agendar_paso_1" }]);
-    await responder(chatId, `Horarios para ${fecha}:`, botones, callbackQuery?.message?.message_id ?? null);
+    await responder(
+      chatId,
+      `Horarios para ${fecha}:`,
+      botones,
+      callbackQuery?.message?.message_id ?? null,
+    );
     return new Response("ok");
   }
 
@@ -237,7 +267,9 @@ Deno.serve(async (req) => {
     userState.ultimaHoraElegida = hhmm;
 
     const replyMarkup = {
-      keyboard: [[{ text: "Compartir mi número para agendar", request_contact: true }]],
+      keyboard: [
+        [{ text: "Compartir mi número para agendar", request_contact: true }],
+      ],
       one_time_keyboard: true,
       resize_keyboard: true,
     };
@@ -271,14 +303,19 @@ Deno.serve(async (req) => {
     const hhmm = userState.ultimaHoraElegida;
 
     if (!fecha || !hhmm) {
-      await responder(chatId, "No tengo fecha/hora seleccionada. Volvé a agendar.", [
-        [{ text: "Agendar", callback_data: "agendar_paso_1" }],
-      ]);
+      await responder(
+        chatId,
+        "No tengo fecha/hora seleccionada. Volvé a agendar.",
+        [[{ text: "Agendar", callback_data: "agendar_paso_1" }]],
+      );
       return new Response("ok");
     }
 
     const startTime = toTs(fecha, hhmm);
-    const endTime = toTs(fecha, hhmmFromMinutes(minutesFromHHMM(hhmm) + SLOT_MINUTES));
+    const endTime = toTs(
+      fecha,
+      hhmmFromMinutes(minutesFromHHMM(hhmm) + SLOT_MINUTES),
+    );
 
     const { data: result, error } = await supabase.rpc("create_appointment", {
       p_org_id: ORG_ID,
@@ -292,19 +329,26 @@ Deno.serve(async (req) => {
 
     if (error || !result?.success) {
       console.error(error || result);
-      await responder(chatId, String(result?.message ?? "No se pudo reservar el turno."), [
-        [{ text: "Volver", callback_data: "menu_principal" }],
-      ]);
+      await responder(
+        chatId,
+        String(result?.message ?? "No se pudo reservar el turno."),
+        [[{ text: "Volver", callback_data: "menu_principal" }]],
+      );
       return new Response("ok");
     }
 
-    await responder(chatId, "Turno reservado con éxito.", [[{ text: "Inicio", callback_data: "menu_principal" }]]);
+    await responder(chatId, "Turno reservado con éxito.", [
+      [{ text: "Inicio", callback_data: "menu_principal" }],
+    ]);
     return new Response("ok");
   }
 
   // 6) Consultar turnos (pedir teléfono)
   if (data === "consultar_turnos") {
-    await responder(chatId, "Escribí tu número de teléfono para buscar tus turnos (solo números).");
+    await responder(
+      chatId,
+      "Escribí tu número de teléfono para buscar tus turnos (solo números).",
+    );
     return new Response("ok");
   }
 
@@ -342,7 +386,9 @@ Deno.serve(async (req) => {
         hour: "2-digit",
         minute: "2-digit",
       });
-      return [{ text: `Cancelar: ${fecha}`, callback_data: `cancelar_id_${t.id}` }];
+      return [
+        { text: `Cancelar: ${fecha}`, callback_data: `cancelar_id_${t.id}` },
+      ];
     });
 
     botones.push([{ text: "Inicio", callback_data: "menu_principal" }]);
@@ -363,7 +409,12 @@ Deno.serve(async (req) => {
       ? "No se pudo cancelar el turno. Intentá más tarde."
       : "El turno fue cancelado.";
 
-    await responder(chatId, mensajeFin, [[{ text: "Inicio", callback_data: "menu_principal" }]], callbackQuery?.message?.message_id ?? null);
+    await responder(
+      chatId,
+      mensajeFin,
+      [[{ text: "Inicio", callback_data: "menu_principal" }]],
+      callbackQuery?.message?.message_id ?? null,
+    );
     return new Response("ok");
   }
 

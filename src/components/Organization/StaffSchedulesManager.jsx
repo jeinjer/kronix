@@ -1,22 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Loader2, Plus, Save, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { getOrganizationStaff } from '@/supabase/services/staff';
-import { getStaffSchedules, replaceStaffSchedules } from '@/supabase/services/schedules';
-import ScheduleTemplateSelector from './ScheduleTemplateSelector';
-import CollapsiblePanel from '@/components/ui/CollapsiblePanel';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarClock, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { getOrganizationStaff } from "@/supabase/services/staff";
+import {
+  getStaffSchedules,
+  replaceStaffSchedules,
+} from "@/supabase/services/schedules";
+import ScheduleTemplateSelector from "./ScheduleTemplateSelector";
+import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 
 const DAYS = [
-  { value: 0, label: 'Domingo' },
-  { value: 1, label: 'Lunes' },
-  { value: 2, label: 'Martes' },
-  { value: 3, label: 'Miercoles' },
-  { value: 4, label: 'Jueves' },
-  { value: 5, label: 'Viernes' },
-  { value: 6, label: 'Sabado' },
+  { value: 0, label: "Domingo" },
+  { value: 1, label: "Lunes" },
+  { value: 2, label: "Martes" },
+  { value: 3, label: "Miercoles" },
+  { value: 4, label: "Jueves" },
+  { value: 5, label: "Viernes" },
+  { value: 6, label: "Sabado" },
 ];
-const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0'));
-const MINUTE_OPTIONS = ['00', '30'];
+const HOURS = Array.from({ length: 24 }, (_, index) =>
+  String(index).padStart(2, "0"),
+);
+const MINUTE_OPTIONS = ["00", "30"];
 
 const createEmptyWeek = () =>
   DAYS.reduce((acc, day) => {
@@ -24,9 +29,11 @@ const createEmptyWeek = () =>
     return acc;
   }, {});
 
-const normalizeTime = (timeValue) => String(timeValue || '').slice(0, 5);
+const normalizeTime = (timeValue) => String(timeValue || "").slice(0, 5);
 const toMinutes = (timeValue) => {
-  const [hours, minutes] = String(timeValue || '').split(':').map(Number);
+  const [hours, minutes] = String(timeValue || "")
+    .split(":")
+    .map(Number);
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return NaN;
   return hours * 60 + minutes;
 };
@@ -36,9 +43,9 @@ const isHalfHourStep = (timeValue) => {
   return minutes % 30 === 0;
 };
 const splitTimeParts = (timeValue) => {
-  const [hour = '09', minute = '00'] = String(timeValue || '').split(':');
-  const safeHour = HOURS.includes(hour) ? hour : '09';
-  const safeMinute = MINUTE_OPTIONS.includes(minute) ? minute : '00';
+  const [hour = "09", minute = "00"] = String(timeValue || "").split(":");
+  const safeHour = HOURS.includes(hour) ? hour : "09";
+  const safeMinute = MINUTE_OPTIONS.includes(minute) ? minute : "00";
   return { hour: safeHour, minute: safeMinute };
 };
 const buildTimeValue = (hour, minute) => `${hour}:${minute}`;
@@ -52,8 +59,8 @@ const serializeBlocksByDay = (blocksByDay) =>
       .sort((a, b) =>
         a.start_time === b.start_time
           ? a.end_time.localeCompare(b.end_time)
-          : a.start_time.localeCompare(b.start_time)
-      )
+          : a.start_time.localeCompare(b.start_time),
+      ),
   );
 
 const validateDayBlocks = (dayLabel, blocks) => {
@@ -76,7 +83,11 @@ const validateDayBlocks = (dayLabel, blocks) => {
     }))
     .sort((a, b) => a.start - b.start);
 
-  if (normalized.some((slot) => Number.isNaN(slot.start) || Number.isNaN(slot.end))) {
+  if (
+    normalized.some(
+      (slot) => Number.isNaN(slot.start) || Number.isNaN(slot.end),
+    )
+  ) {
     return `Revisa ${dayLabel}: hay un bloque horario con hora invalida.`;
   }
 
@@ -91,16 +102,20 @@ const validateDayBlocks = (dayLabel, blocks) => {
   return null;
 };
 
-export default function StaffSchedulesManager({ organizationId, staffRefreshKey, onSchedulesChanged }) {
+export default function StaffSchedulesManager({
+  organizationId,
+  staffRefreshKey,
+  onSchedulesChanged,
+}) {
   const [staffList, setStaffList] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
-  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [selectedStaffId, setSelectedStaffId] = useState("");
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clearingAll, setClearingAll] = useState(false);
   const [blocksByDay, setBlocksByDay] = useState(createEmptyWeek());
   const [persistedSignature, setPersistedSignature] = useState(
-    JSON.stringify(serializeBlocksByDay(createEmptyWeek()))
+    JSON.stringify(serializeBlocksByDay(createEmptyWeek())),
   );
   const [blockToRemove, setBlockToRemove] = useState(null);
   const [confirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
@@ -117,7 +132,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     setLoadingSchedule(true);
     const { data, error } = await getStaffSchedules(selectedStaffId);
     if (error) {
-      toast.error('No se pudo cargar el calendario laboral');
+      toast.error("No se pudo cargar el calendario laboral");
       const emptyWeek = createEmptyWeek();
       setBlocksByDay(emptyWeek);
       setPersistedSignature(JSON.stringify(serializeBlocksByDay(emptyWeek)));
@@ -136,7 +151,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
         grouped[day.value] = (grouped[day.value] || []).sort((a, b) =>
           a.start_time === b.start_time
             ? a.end_time.localeCompare(b.end_time)
-            : a.start_time.localeCompare(b.start_time)
+            : a.start_time.localeCompare(b.start_time),
         );
       });
       setBlocksByDay(grouped);
@@ -151,7 +166,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
       setLoadingStaff(true);
       const { data, error } = await getOrganizationStaff(organizationId);
       if (error) {
-        toast.error('No se pudo cargar el staff');
+        toast.error("No se pudo cargar el staff");
         setStaffList([]);
       } else {
         const active = (data || []).filter((item) => item.is_active);
@@ -159,7 +174,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
         if (active.length) {
           setSelectedStaffId((prev) => prev || active[0].id);
         } else {
-          setSelectedStaffId('');
+          setSelectedStaffId("");
         }
       }
       setLoadingStaff(false);
@@ -176,35 +191,42 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
   const hasPendingBlock = useMemo(
     () =>
       DAYS.some((day) =>
-        (blocksByDay[day.value] || []).some((block) => String(block.id).startsWith('new-'))
+        (blocksByDay[day.value] || []).some((block) =>
+          String(block.id).startsWith("new-"),
+        ),
       ),
-    [blocksByDay]
+    [blocksByDay],
   );
   const dayValidationMessages = useMemo(
     () =>
       DAYS.reduce((acc, day) => {
-        acc[day.value] = validateDayBlocks(day.label, blocksByDay[day.value] || []);
+        acc[day.value] = validateDayBlocks(
+          day.label,
+          blocksByDay[day.value] || [],
+        );
         return acc;
       }, {}),
-    [blocksByDay]
+    [blocksByDay],
   );
   const hasValidationErrors = useMemo(
     () => DAYS.some((day) => Boolean(dayValidationMessages[day.value])),
-    [dayValidationMessages]
+    [dayValidationMessages],
   );
   const hasAnyBlocks = useMemo(
     () => DAYS.some((day) => (blocksByDay[day.value] || []).length > 0),
-    [blocksByDay]
+    [blocksByDay],
   );
   const currentSignature = useMemo(
     () => JSON.stringify(serializeBlocksByDay(blocksByDay)),
-    [blocksByDay]
+    [blocksByDay],
   );
   const hasUnsavedChanges = currentSignature !== persistedSignature;
 
   const handleAddBlock = (dayOfWeek) => {
     if (hasPendingBlock) {
-      toast.error('Primero confirma y guarda el bloque horario pendiente antes de agregar otro.');
+      toast.error(
+        "Primero confirma y guarda el bloque horario pendiente antes de agregar otro.",
+      );
       return;
     }
 
@@ -212,7 +234,11 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
       ...prev,
       [dayOfWeek]: [
         ...(prev[dayOfWeek] || []),
-        { id: `new-${dayOfWeek}-${Date.now()}`, start_time: '09:00', end_time: '18:00' },
+        {
+          id: `new-${dayOfWeek}-${Date.now()}`,
+          start_time: "09:00",
+          end_time: "18:00",
+        },
       ],
     }));
   };
@@ -227,7 +253,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     setBlocksByDay((prev) => ({
       ...prev,
       [blockToRemove.dayOfWeek]: (prev[blockToRemove.dayOfWeek] || []).filter(
-        (block) => block.id !== blockToRemove.blockId
+        (block) => block.id !== blockToRemove.blockId,
       ),
     }));
     setBlockToRemove(null);
@@ -237,14 +263,17 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     setBlocksByDay((prev) => ({
       ...prev,
       [dayOfWeek]: (prev[dayOfWeek] || []).map((block) =>
-        block.id === blockId ? { ...block, [field]: value } : block
+        block.id === blockId ? { ...block, [field]: value } : block,
       ),
     }));
   };
 
   const validateBlocks = () => {
     for (const day of DAYS) {
-      const message = validateDayBlocks(day.label, blocksByDay[day.value] || []);
+      const message = validateDayBlocks(
+        day.label,
+        blocksByDay[day.value] || [],
+      );
       if (message) return message;
     }
     return null;
@@ -252,7 +281,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
 
   const handleSave = async () => {
     if (!selectedStaffId) {
-      toast.error('Selecciona un empleado.');
+      toast.error("Selecciona un empleado.");
       return;
     }
 
@@ -267,7 +296,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
         day_of_week: day.value,
         start_time: `${block.start_time}:00`,
         end_time: `${block.end_time}:00`,
-      }))
+      })),
     );
 
     setSaving(true);
@@ -277,9 +306,9 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     });
 
     if (error) {
-      toast.error('No se pudo guardar el calendario laboral.');
+      toast.error("No se pudo guardar el calendario laboral.");
     } else {
-      toast.success('Calendario laboral actualizado.');
+      toast.success("Calendario laboral actualizado.");
       await loadScheduleData();
       onSchedulesChanged?.();
     }
@@ -288,7 +317,7 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
 
   const handleClearAllSchedules = async () => {
     if (!selectedStaffId) {
-      toast.error('Selecciona un empleado.');
+      toast.error("Selecciona un empleado.");
       return;
     }
 
@@ -299,12 +328,12 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
     });
 
     if (error) {
-      toast.error('No se pudieron borrar los horarios.');
+      toast.error("No se pudieron borrar los horarios.");
     } else {
       const emptyWeek = createEmptyWeek();
       setBlocksByDay(emptyWeek);
       setPersistedSignature(JSON.stringify(serializeBlocksByDay(emptyWeek)));
-      toast.success('Todos los horarios fueron eliminados.');
+      toast.success("Todos los horarios fueron eliminados.");
       onSchedulesChanged?.();
     }
 
@@ -348,26 +377,33 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
           </div>
 
           {hasPendingBlock ? (
-        <div className="mb-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-            Tienes un bloque horario nuevo pendiente. Guardalo para confirmarlo.
-          </p>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || hasValidationErrors}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-            Guardar bloque horario nuevo
-          </button>
-          </div>
+            <div className="mb-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                Tienes un bloque horario nuevo pendiente. Guardalo para
+                confirmarlo.
+              </p>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || hasValidationErrors}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Save size={13} />
+                )}
+                Guardar bloque horario nuevo
+              </button>
+            </div>
           ) : null}
 
           {loadingStaff || loadingSchedule ? (
             <div className="py-10 flex items-center justify-center gap-2 text-slate-500">
               <Loader2 size={18} className="animate-spin" />
-              <span className="text-sm font-semibold">Cargando calendario laboral...</span>
+              <span className="text-sm font-semibold">
+                Cargando calendario laboral...
+              </span>
             </div>
           ) : !hasStaff ? (
             <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 py-8 px-4 text-center text-sm text-slate-600 dark:text-slate-400">
@@ -375,192 +411,261 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
             </div>
           ) : (
             <>
-          <div className="space-y-3">
-            {DAYS.map((day) => {
-              const blocks = blocksByDay[day.value] || [];
-              return (
-                <article
-                  key={day.value}
-                  className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-white/[0.02]"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{day.label}</h4>
-                    <button
-                      type="button"
-                      onClick={() => handleAddBlock(day.value)}
-                      disabled={hasPendingBlock}
-                      className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              <div className="space-y-3">
+                {DAYS.map((day) => {
+                  const blocks = blocksByDay[day.value] || [];
+                  return (
+                    <article
+                      key={day.value}
+                      className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-white/[0.02]"
                     >
-                      <Plus size={12} />
-                      Agregar bloque horario
-                    </button>
-                  </div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                          {day.label}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => handleAddBlock(day.value)}
+                          disabled={hasPendingBlock}
+                          className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={12} />
+                          Agregar bloque horario
+                        </button>
+                      </div>
 
-                  {blocks.length === 0 ? (
-                    <div className="text-xs text-slate-500 flex items-center gap-2">
-                      <CalendarClock size={13} />
-                      Sin bloque horario asignado
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {blocks.map((block) => (
-                        <div key={block.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            Bloque horario
-                          </span>
-                          <div className="space-y-1">
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                              Inicio
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
-                              <label className="flex flex-col gap-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Hora</span>
-                                <select
-                                  value={splitTimeParts(block.start_time).hour}
-                                  onChange={(event) => {
-                                    const { minute } = splitTimeParts(block.start_time);
-                                    handleChangeBlock(
-                                      day.value,
-                                      block.id,
-                                      'start_time',
-                                      buildTimeValue(event.target.value, minute)
-                                    );
-                                  }}
-                                  className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                >
-                                  {HOURS.map((hour) => (
-                                    <option key={`start-hour-${block.id}-${hour}`} value={hour}>
-                                      {hour}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="flex flex-col gap-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Min</span>
-                                <select
-                                  value={splitTimeParts(block.start_time).minute}
-                                  onChange={(event) => {
-                                    const { hour } = splitTimeParts(block.start_time);
-                                    handleChangeBlock(
-                                      day.value,
-                                      block.id,
-                                      'start_time',
-                                      buildTimeValue(hour, event.target.value)
-                                    );
-                                  }}
-                                  className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                >
-                                  {MINUTE_OPTIONS.map((minute) => (
-                                    <option key={`start-minute-${block.id}-${minute}`} value={minute}>
-                                      {minute}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
-                              Fin
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
-                              <label className="flex flex-col gap-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Hora</span>
-                                <select
-                                  value={splitTimeParts(block.end_time).hour}
-                                  onChange={(event) => {
-                                    const { minute } = splitTimeParts(block.end_time);
-                                    handleChangeBlock(
-                                      day.value,
-                                      block.id,
-                                      'end_time',
-                                      buildTimeValue(event.target.value, minute)
-                                    );
-                                  }}
-                                  className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                >
-                                  {HOURS.map((hour) => (
-                                    <option key={`end-hour-${block.id}-${hour}`} value={hour}>
-                                      {hour}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="flex flex-col gap-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Min</span>
-                                <select
-                                  value={splitTimeParts(block.end_time).minute}
-                                  onChange={(event) => {
-                                    const { hour } = splitTimeParts(block.end_time);
-                                    handleChangeBlock(
-                                      day.value,
-                                      block.id,
-                                      'end_time',
-                                      buildTimeValue(hour, event.target.value)
-                                    );
-                                  }}
-                                  className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                >
-                                  {MINUTE_OPTIONS.map((minute) => (
-                                    <option key={`end-minute-${block.id}-${minute}`} value={minute}>
-                                      {minute}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveBlock(day.value, block.id)}
-                            className="md:col-span-2 md:self-end inline-flex items-center justify-center gap-1 text-xs font-bold px-3 py-2 rounded-lg bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25 transition-colors"
-                          >
-                            <Trash2 size={12} />
-                            Quitar bloque horario
-                          </button>
+                      {blocks.length === 0 ? (
+                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                          <CalendarClock size={13} />
+                          Sin bloque horario asignado
                         </div>
-                      ))}
-                    </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {blocks.map((block) => (
+                            <div
+                              key={block.id}
+                              className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end"
+                            >
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                Bloque horario
+                              </span>
+                              <div className="space-y-1">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                                  Inicio
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                      Hora
+                                    </span>
+                                    <select
+                                      value={
+                                        splitTimeParts(block.start_time).hour
+                                      }
+                                      onChange={(event) => {
+                                        const { minute } = splitTimeParts(
+                                          block.start_time,
+                                        );
+                                        handleChangeBlock(
+                                          day.value,
+                                          block.id,
+                                          "start_time",
+                                          buildTimeValue(
+                                            event.target.value,
+                                            minute,
+                                          ),
+                                        );
+                                      }}
+                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    >
+                                      {HOURS.map((hour) => (
+                                        <option
+                                          key={`start-hour-${block.id}-${hour}`}
+                                          value={hour}
+                                        >
+                                          {hour}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                      Min
+                                    </span>
+                                    <select
+                                      value={
+                                        splitTimeParts(block.start_time).minute
+                                      }
+                                      onChange={(event) => {
+                                        const { hour } = splitTimeParts(
+                                          block.start_time,
+                                        );
+                                        handleChangeBlock(
+                                          day.value,
+                                          block.id,
+                                          "start_time",
+                                          buildTimeValue(
+                                            hour,
+                                            event.target.value,
+                                          ),
+                                        );
+                                      }}
+                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    >
+                                      {MINUTE_OPTIONS.map((minute) => (
+                                        <option
+                                          key={`start-minute-${block.id}-${minute}`}
+                                          value={minute}
+                                        >
+                                          {minute}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
+                                  Fin
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                      Hora
+                                    </span>
+                                    <select
+                                      value={
+                                        splitTimeParts(block.end_time).hour
+                                      }
+                                      onChange={(event) => {
+                                        const { minute } = splitTimeParts(
+                                          block.end_time,
+                                        );
+                                        handleChangeBlock(
+                                          day.value,
+                                          block.id,
+                                          "end_time",
+                                          buildTimeValue(
+                                            event.target.value,
+                                            minute,
+                                          ),
+                                        );
+                                      }}
+                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    >
+                                      {HOURS.map((hour) => (
+                                        <option
+                                          key={`end-hour-${block.id}-${hour}`}
+                                          value={hour}
+                                        >
+                                          {hour}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                      Min
+                                    </span>
+                                    <select
+                                      value={
+                                        splitTimeParts(block.end_time).minute
+                                      }
+                                      onChange={(event) => {
+                                        const { hour } = splitTimeParts(
+                                          block.end_time,
+                                        );
+                                        handleChangeBlock(
+                                          day.value,
+                                          block.id,
+                                          "end_time",
+                                          buildTimeValue(
+                                            hour,
+                                            event.target.value,
+                                          ),
+                                        );
+                                      }}
+                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    >
+                                      {MINUTE_OPTIONS.map((minute) => (
+                                        <option
+                                          key={`end-minute-${block.id}-${minute}`}
+                                          value={minute}
+                                        >
+                                          {minute}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveBlock(day.value, block.id)
+                                }
+                                className="md:col-span-2 md:self-end inline-flex items-center justify-center gap-1 text-xs font-bold px-3 py-2 rounded-lg bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25 transition-colors"
+                              >
+                                <Trash2 size={12} />
+                                Quitar bloque horario
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {dayValidationMessages[day.value] ? (
+                        <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">
+                          {dayValidationMessages[day.value]}
+                        </p>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+
+              {hasPendingBlock ? (
+                <p className="mt-3 text-xs font-semibold text-amber-600 dark:text-amber-300">
+                  Hay un bloque horario pendiente. Guarda los cambios antes de
+                  agregar otro.
+                </p>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                {hasAnyBlocks ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearAllOpen(true)}
+                    disabled={saving || clearingAll}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-sm font-bold transition-colors disabled:opacity-70"
+                  >
+                    {clearingAll ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={15} />
+                    )}
+                    Borrar todos los horarios
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={
+                    saving ||
+                    clearingAll ||
+                    hasValidationErrors ||
+                    !hasUnsavedChanges
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold transition-colors disabled:opacity-70"
+                >
+                  {saving ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Save size={15} />
                   )}
-
-                  {dayValidationMessages[day.value] ? (
-                    <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">
-                      {dayValidationMessages[day.value]}
-                    </p>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
-
-          {hasPendingBlock ? (
-            <p className="mt-3 text-xs font-semibold text-amber-600 dark:text-amber-300">
-              Hay un bloque horario pendiente. Guarda los cambios antes de agregar otro.
-            </p>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap justify-end gap-2">
-            {hasAnyBlocks ? (
-              <button
-                type="button"
-                onClick={() => setConfirmClearAllOpen(true)}
-                disabled={saving || clearingAll}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-sm font-bold transition-colors disabled:opacity-70"
-              >
-                {clearingAll ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                Borrar todos los horarios
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || clearingAll || hasValidationErrors || !hasUnsavedChanges}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold transition-colors disabled:opacity-70"
-            >
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              {saving ? 'Guardando...' : 'Guardar bloques horarios'}
-            </button>
-          </div>
+                  {saving ? "Guardando..." : "Guardar bloques horarios"}
+                </button>
+              </div>
             </>
           )}
         </>
@@ -611,7 +716,8 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
               Borrar todos los horarios
             </h4>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
-              Se eliminaran todos los bloques horarios del empleado seleccionado. Esta accion no se puede deshacer.
+              Se eliminaran todos los bloques horarios del empleado
+              seleccionado. Esta accion no se puede deshacer.
             </p>
 
             <div className="mt-5 flex justify-end gap-2">
@@ -628,8 +734,10 @@ export default function StaffSchedulesManager({ organizationId, staffRefreshKey,
                 disabled={clearingAll}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-70"
               >
-                {clearingAll ? <Loader2 size={13} className="animate-spin" /> : null}
-                {clearingAll ? 'Borrando...' : 'Si, borrar todo'}
+                {clearingAll ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : null}
+                {clearingAll ? "Borrando..." : "Si, borrar todo"}
               </button>
             </div>
           </div>

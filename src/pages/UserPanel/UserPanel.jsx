@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { getUserOrganizations } from '@/supabase/services/organizations';
-import Profile from '@/components/Profile/Profile';
-import Organizations from '@/components/Organization/Organizations';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { getUserOrganizations } from "@/supabase/services/organizations";
+import Profile from "@/components/Profile/Profile";
+import Organizations from "@/components/Organization/Organizations";
 
 export default function UserPanel() {
   const { user } = useAuth();

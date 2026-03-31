@@ -39,3 +39,25 @@ export const DashboardRoute = () => {
   // ya que el usuario entra al Hub para elegir una.
   return <Outlet />;
 };
+
+export const BusinessRoute = () => {
+  const { session, loading, isBusiness } = useAuth();
+
+  if (loading) return null;
+
+  if (!session) return <Navigate to="/login" replace />;
+
+  if (!isBusiness) return <Navigate to="/" replace />;
+
+  return <Outlet />;
+};
+
+export const ProtectedRoute = () => {
+  const { session, loading } = useAuth();
+
+  if (loading) return null;
+
+  if (!session) return <Navigate to="/login" replace />;
+
+  return <Outlet />;
+};
