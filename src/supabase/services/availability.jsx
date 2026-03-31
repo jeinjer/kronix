@@ -1,6 +1,6 @@
-import { supabase } from '@/supabase/supabaseClient';
+import { supabase } from "@/supabase/supabaseClient";
 
-const pad2 = (value) => String(value).padStart(2, '0');
+const pad2 = (value) => String(value).padStart(2, "0");
 
 const getDateParts = (date) => ({
   year: date.getFullYear(),
@@ -18,7 +18,9 @@ const addDays = ({ year, month, day }, amount) => {
 };
 
 const parseTimeString = (timeValue) => {
-  const [hours = '0', minutes = '0', seconds = '0'] = String(timeValue || '00:00:00').split(':');
+  const [hours = "0", minutes = "0", seconds = "0"] = String(
+    timeValue || "00:00:00",
+  ).split(":");
   return {
     hour: Number(hours),
     minute: Number(minutes),
@@ -27,19 +29,19 @@ const parseTimeString = (timeValue) => {
 };
 
 const getTimeZoneParts = (date, timeZone) => {
-  const formatter = new Intl.DateTimeFormat('en-US', {
+  const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   });
 
   const parts = formatter.formatToParts(date).reduce((acc, part) => {
-    if (part.type !== 'literal') acc[part.type] = part.value;
+    if (part.type !== "literal") acc[part.type] = part.value;
     return acc;
   }, {});
 
@@ -55,11 +57,21 @@ const getTimeZoneParts = (date, timeZone) => {
 
 const getOffsetMs = (date, timeZone) => {
   const parts = getTimeZoneParts(date, timeZone);
-  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
   return asUtc - date.getTime();
 };
 
-const zonedDateTimeToUtc = ({ year, month, day, hour, minute, second }, timeZone) => {
+const zonedDateTimeToUtc = (
+  { year, month, day, hour, minute, second },
+  timeZone,
+) => {
   const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
   let offset = getOffsetMs(new Date(utcGuess), timeZone);
   let utcTs = utcGuess - offset;
@@ -74,10 +86,10 @@ const zonedDateTimeToUtc = ({ year, month, day, hour, minute, second }, timeZone
 };
 
 const formatSlotLabel = (date, timeZone) => {
-  const formatter = new Intl.DateTimeFormat('es-AR', {
+  const formatter = new Intl.DateTimeFormat("es-AR", {
     timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   });
   return formatter.format(date);
@@ -113,11 +125,11 @@ const buildDaySlots = ({
 
     const rangeStartUtc = zonedDateTimeToUtc(
       { ...dateParts, ...startParts },
-      timeZone
+      timeZone,
     );
     const rangeEndUtc = zonedDateTimeToUtc(
       { ...dateParts, ...endParts },
-      timeZone
+      timeZone,
     );
 
     let cursor = new Date(rangeStartUtc.getTime());
@@ -127,12 +139,17 @@ const buildDaySlots = ({
       const isPast = slotStart.getTime() <= Date.now();
 
       const collision = appointments.find((appt) =>
-        overlaps(slotStart, slotEnd, new Date(appt.start_time), new Date(appt.end_time))
+        overlaps(
+          slotStart,
+          slotEnd,
+          new Date(appt.start_time),
+          new Date(appt.end_time),
+        ),
       );
 
       const isReserved = Boolean(collision);
       const isAvailable = !isReserved && !isPast;
-      const status = isReserved ? 'occupied' : isPast ? 'expired' : 'free';
+      const status = isReserved ? "occupied" : isPast ? "expired" : "free";
 
       slots.push({
         startUtc: slotStart.toISOString(),
@@ -141,7 +158,7 @@ const buildDaySlots = ({
         isAvailable,
         status,
         appointmentId: isReserved ? collision?.id || null : null,
-        clientName: isReserved ? collision?.client_name || 'Reservado' : null,
+        clientName: isReserved ? collision?.client_name || "Reservado" : null,
       });
 
       cursor = new Date(cursor.getTime() + serviceMs);
@@ -162,15 +179,17 @@ const buildDaySlots = ({
         endUtc: apptEnd.toISOString(),
         label: formatSlotLabel(apptStart, timeZone),
         isAvailable: false,
-        status: 'occupied',
+        status: "occupied",
         appointmentId: appointment.id,
-        clientName: appointment.client_name || 'Reservado',
+        clientName: appointment.client_name || "Reservado",
       });
       existingByStart.add(startIso);
     }
   }
 
-  slots.sort((a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime());
+  slots.sort(
+    (a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime(),
+  );
 
   return slots;
 };
@@ -183,40 +202,49 @@ export const getStaffAvailableSlots = async ({
   excludeAppointmentId = null,
 }) => {
   try {
-    if (!staffId) throw new Error('staffId requerido');
-    if (!(selectedDate instanceof Date) || Number.isNaN(selectedDate.getTime())) {
-      throw new Error('selectedDate invalida');
+    if (!staffId) throw new Error("staffId requerido");
+    if (
+      !(selectedDate instanceof Date) ||
+      Number.isNaN(selectedDate.getTime())
+    ) {
+      throw new Error("selectedDate invalida");
     }
     if (!serviceDuration || serviceDuration <= 0) {
-      throw new Error('serviceDuration invalida');
+      throw new Error("serviceDuration invalida");
     }
 
     const dateParts = getDateParts(selectedDate);
     const nextDay = addDays(dateParts, 1);
 
-    const dayStartUtc = zonedDateTimeToUtc({ ...dateParts, hour: 0, minute: 0, second: 0 }, timeZone);
-    const dayEndUtc = zonedDateTimeToUtc({ ...nextDay, hour: 0, minute: 0, second: 0 }, timeZone);
+    const dayStartUtc = zonedDateTimeToUtc(
+      { ...dateParts, hour: 0, minute: 0, second: 0 },
+      timeZone,
+    );
+    const dayEndUtc = zonedDateTimeToUtc(
+      { ...nextDay, hour: 0, minute: 0, second: 0 },
+      timeZone,
+    );
 
     const rpcDate = `${dateParts.year}-${pad2(dateParts.month)}-${pad2(dateParts.day)}`;
 
     const [workingHoursResponse, appointmentsResponse] = await Promise.all([
-      supabase.rpc('get_staff_working_hours', {
+      supabase.rpc("get_staff_working_hours", {
         p_staff_id: staffId,
         p_date: rpcDate,
       }),
       (() => {
         let appointmentsQuery = supabase
-          .from('appointments')
-          .select('id, start_time, end_time, status, client_name')
-          .eq('staff_id', staffId)
-          .is('deleted_at', null)
-          .neq('status', 'canceled')
-          .lt('start_time', dayEndUtc.toISOString())
-          .gt('end_time', dayStartUtc.toISOString())
-          .order('start_time', { ascending: true });
+          .from("appointments")
+          .select("id, start_time, end_time, status, client_name")
+          .eq("staff_id", staffId)
+          .is("deleted_at", null)
+          .neq("status", "canceled")
+          .lt("start_time", dayEndUtc.toISOString())
+          .gt("end_time", dayStartUtc.toISOString())
+          .order("start_time", { ascending: true });
 
         if (excludeAppointmentId) {
-          appointmentsQuery = appointmentsQuery.neq('id', excludeAppointmentId);
+          appointmentsQuery = appointmentsQuery.neq("id", excludeAppointmentId);
         }
 
         return appointmentsQuery;
@@ -226,8 +254,12 @@ export const getStaffAvailableSlots = async ({
     if (workingHoursResponse.error) throw workingHoursResponse.error;
     if (appointmentsResponse.error) throw appointmentsResponse.error;
 
-    const workingHours = Array.isArray(workingHoursResponse.data) ? workingHoursResponse.data : [];
-    const appointments = Array.isArray(appointmentsResponse.data) ? appointmentsResponse.data : [];
+    const workingHours = Array.isArray(workingHoursResponse.data)
+      ? workingHoursResponse.data
+      : [];
+    const appointments = Array.isArray(appointmentsResponse.data)
+      ? appointmentsResponse.data
+      : [];
 
     const daySlots = buildDaySlots({
       workingHours,
@@ -239,7 +271,7 @@ export const getStaffAvailableSlots = async ({
 
     return { data: daySlots, error: null };
   } catch (error) {
-    console.error('Error en getStaffAvailableSlots:', error);
+    console.error("Error en getStaffAvailableSlots:", error);
     return { data: [], error };
   }
 };

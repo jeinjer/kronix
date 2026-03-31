@@ -1,17 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import React, { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   applyScheduleTemplate,
   getScheduleTemplates,
-} from '@/supabase/services/scheduleTemplates';
+} from "@/supabase/services/scheduleTemplates";
 
-export default function ScheduleTemplateSelector({
-  staffId,
-  onSuccess,
-}) {
+export default function ScheduleTemplateSelector({ staffId, onSuccess }) {
   const [templates, setTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [applying, setApplying] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -22,12 +19,12 @@ export default function ScheduleTemplateSelector({
       const { data, error } = await getScheduleTemplates();
 
       if (error) {
-        toast.error('No se pudieron cargar las plantillas.');
+        toast.error("No se pudieron cargar las plantillas.");
         setTemplates([]);
-        setSelectedTemplateId('');
+        setSelectedTemplateId("");
       } else {
         setTemplates(data || []);
-        setSelectedTemplateId((data || [])[0]?.id || '');
+        setSelectedTemplateId((data || [])[0]?.id || "");
       }
 
       setLoadingTemplates(false);
@@ -38,11 +35,11 @@ export default function ScheduleTemplateSelector({
 
   const handleApplyTemplate = async () => {
     if (!staffId) {
-      toast.error('Selecciona un empleado.');
+      toast.error("Selecciona un empleado.");
       return;
     }
     if (!selectedTemplateId) {
-      toast.error('Selecciona una plantilla.');
+      toast.error("Selecciona una plantilla.");
       return;
     }
 
@@ -58,9 +55,9 @@ export default function ScheduleTemplateSelector({
     });
 
     if (error) {
-      toast.error('No se pudo aplicar la plantilla.');
+      toast.error("No se pudo aplicar la plantilla.");
     } else {
-      toast.success('Plantilla aplicada correctamente.');
+      toast.success("Plantilla aplicada correctamente.");
       await onSuccess?.();
     }
     setApplying(false);
@@ -104,7 +101,7 @@ export default function ScheduleTemplateSelector({
         className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-70"
       >
         {applying ? <Loader2 size={13} className="animate-spin" /> : null}
-        {applying ? 'Cargando...' : 'Aplicar Plantilla'}
+        {applying ? "Cargando..." : "Aplicar Plantilla"}
       </button>
 
       {showConfirmModal ? (
@@ -118,7 +115,8 @@ export default function ScheduleTemplateSelector({
               Confirmar aplicacion
             </h4>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
-              Estas seguro? Esto reemplazara todo el horario actual de este empleado con la plantilla seleccionada.
+              Estas seguro? Esto reemplazara todo el horario actual de este
+              empleado con la plantilla seleccionada.
             </p>
 
             <div className="mt-5 flex justify-end gap-2">

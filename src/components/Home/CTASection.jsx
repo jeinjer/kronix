@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link } from "react-router-dom";
 
 export default function CTASection() {
   return (
@@ -10,14 +10,17 @@ export default function CTASection() {
           ¿Listo para escalar?
         </h2>
         <p className="text-xl text-indigo-900/60 dark:text-indigo-200/60 mb-12">
-          Unite a la plataforma que eligen los profesionales que valoran su tiempo.
+          Unite a la plataforma que eligen los profesionales que valoran su
+          tiempo.
         </p>
         <Link to="/registro">
           <button className="px-12 py-6 bg-white text-indigo-950 text-xl font-black rounded-full shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-105 transition-transform">
             CREAR CUENTA GRATIS
           </button>
         </Link>
-        <p className="mt-6 text-sm text-slate-600 dark:text-slate-500 font-medium tracking-wide">NO REQUIERE TARJETA DE CRÉDITO</p>
+        <p className="mt-6 text-sm text-slate-600 dark:text-slate-500 font-medium tracking-wide">
+          NO REQUIERE TARJETA DE CRÉDITO
+        </p>
       </div>
     </section>
   );

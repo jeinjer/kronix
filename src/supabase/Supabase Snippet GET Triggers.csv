@@ -1,0 +1,7 @@
+nombre_trigger,tabla,momento,evento,accion
+trigger_check_overlap,appointments,BEFORE,INSERT,EXECUTE FUNCTION check_appointment_overlap()
+trigger_check_overlap,appointments,BEFORE,UPDATE,EXECUTE FUNCTION check_appointment_overlap()
+check_first_org_bonus,organization_members,AFTER,INSERT,EXECUTE FUNCTION handle_first_organization_bonus()
+trigger_guard_saas_invitation_email,saas_invitations,BEFORE,INSERT,EXECUTE FUNCTION guard_saas_invitation_email()
+trigger_guard_saas_invitation_email,saas_invitations,BEFORE,UPDATE,EXECUTE FUNCTION guard_saas_invitation_email()
+trigger_reactivate_sub,subscriptions,BEFORE,UPDATE,EXECUTE FUNCTION handle_subscription_reactivation()

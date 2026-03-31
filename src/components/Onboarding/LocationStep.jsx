@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { getProvinces, getCitiesByProvince } from '../../supabase/services/locations';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  getProvinces,
+  getCitiesByProvince,
+} from "../../supabase/services/locations";
 
 export default function LocationStep({ formData, setFormData }) {
   const [provinces, setProvinces] = useState([]);
@@ -20,8 +23,8 @@ export default function LocationStep({ formData, setFormData }) {
   // 2. Cargar Ciudades usando el servicio
   useEffect(() => {
     if (!formData.provinceId) {
-        setCities([]);
-        return;
+      setCities([]);
+      return;
     }
 
     const loadCities = async () => {
@@ -34,14 +37,14 @@ export default function LocationStep({ formData, setFormData }) {
 
   // Handler de cambio de ciudad
   const handleCityChange = (e) => {
-      const cityId = e.target.value;
-      const selectedCity = cities.find(c => c.id === parseInt(cityId));
-      
-      setFormData({ 
-          ...formData, 
-          cityId: cityId, 
-          city: selectedCity ? selectedCity.name : '' 
-      });
+    const cityId = e.target.value;
+    const selectedCity = cities.find((c) => c.id === parseInt(cityId));
+
+    setFormData({
+      ...formData,
+      cityId: cityId,
+      city: selectedCity ? selectedCity.name : "",
+    });
   };
 
   return (
@@ -52,82 +55,113 @@ export default function LocationStep({ formData, setFormData }) {
       className="flex-1 flex flex-col gap-6"
     >
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sede Operativa</h2>
-        <p className="text-slate-600 dark:text-slate-400">¿Dónde se encuentra ubicado tu negocio?</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+          Sede Operativa
+        </h2>
+        <p className="text-slate-600 dark:text-slate-400">
+          ¿Dónde se encuentra ubicado tu negocio?
+        </p>
       </div>
 
       <div className="space-y-5">
-          
-          <div className="grid grid-cols-2 gap-5">
-              {/* Provincia Dropdown */}
-              <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Provincia</label>
-                  <div className="relative">
-                    <select 
-                        value={formData.provinceId || ''}
-                        onChange={(e) => setFormData({...formData, provinceId: e.target.value, cityId: '', city: ''})}
-                        disabled={loadingProvinces}
-                        className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
-                    >
-                        <option value="">{loadingProvinces ? 'Cargando...' : 'Seleccionar...'}</option>
-                        {provinces.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                    <div className="absolute right-3 top-4 pointer-events-none text-slate-500 text-xs">▼</div>
-                  </div>
+        <div className="grid grid-cols-2 gap-5">
+          {/* Provincia Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Provincia
+            </label>
+            <div className="relative">
+              <select
+                value={formData.provinceId || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    provinceId: e.target.value,
+                    cityId: "",
+                    city: "",
+                  })
+                }
+                disabled={loadingProvinces}
+                className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
+              >
+                <option value="">
+                  {loadingProvinces ? "Cargando..." : "Seleccionar..."}
+                </option>
+                {provinces.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-4 pointer-events-none text-slate-500 text-xs">
+                ▼
               </div>
-
-              {/* Ciudad Dropdown */}
-              <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ciudad</label>
-                  <div className="relative">
-                    <select 
-                        value={formData.cityId || ''}
-                        onChange={handleCityChange}
-                        disabled={!formData.provinceId}
-                        className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
-                    >
-                        <option value="">Seleccionar...</option>
-                        {cities.length > 0 ? (
-                            cities.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))
-                        ) : (
-                            <option disabled>Selecciona una provincia</option>
-                        )}
-                    </select>
-                    <div className="absolute right-3 top-4 pointer-events-none text-slate-500 text-xs">▼</div>
-                  </div>
-              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-5">
-              {/* Calle */}
-              <div className="col-span-2 space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Calle</label>
-                  <input 
-                    type="text" 
-                    value={formData.street}
-                    onChange={(e) => setFormData({...formData, street: e.target.value})}
-                    className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500 dark:placeholder-slate-700"
-                    placeholder="Ej. Av. San Martín"
-                  />
+          {/* Ciudad Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Ciudad
+            </label>
+            <div className="relative">
+              <select
+                value={formData.cityId || ""}
+                onChange={handleCityChange}
+                disabled={!formData.provinceId}
+                className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer disabled:opacity-50"
+              >
+                <option value="">Seleccionar...</option>
+                {cities.length > 0 ? (
+                  cities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>Selecciona una provincia</option>
+                )}
+              </select>
+              <div className="absolute right-3 top-4 pointer-events-none text-slate-500 text-xs">
+                ▼
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* Altura */}
-              <div className="col-span-1 space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Altura</label>
-                  <input 
-                      type="text" 
-                      value={formData.number}
-                      onChange={(e) => setFormData({...formData, number: e.target.value})}
-                      className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500"
-                      placeholder="Ej. 1234"
-                  />
-              </div>
+        <div className="grid grid-cols-3 gap-5">
+          {/* Calle */}
+          <div className="col-span-2 space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Calle
+            </label>
+            <input
+              type="text"
+              value={formData.street}
+              onChange={(e) =>
+                setFormData({ ...formData, street: e.target.value })
+              }
+              className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500 dark:placeholder-slate-700"
+              placeholder="Ej. Av. San Martín"
+            />
           </div>
 
+          {/* Altura */}
+          <div className="col-span-1 space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Altura
+            </label>
+            <input
+              type="text"
+              value={formData.number}
+              onChange={(e) =>
+                setFormData({ ...formData, number: e.target.value })
+              }
+              className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-4 py-3 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-cyan-500"
+              placeholder="Ej. 1234"
+            />
+          </div>
+        </div>
       </div>
     </motion.div>
   );

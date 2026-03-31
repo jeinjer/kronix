@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CollapsiblePanel({
   title,
@@ -7,8 +7,8 @@ export default function CollapsiblePanel({
   isOpen,
   onToggle,
   children,
-  className = '',
-  contentClassName = '',
+  className = "",
+  contentClassName = "",
 }) {
   const contentRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -21,13 +21,13 @@ export default function CollapsiblePanel({
 
     updateHeight();
     let observer = null;
-    if (typeof ResizeObserver !== 'undefined' && contentRef.current) {
+    if (typeof ResizeObserver !== "undefined" && contentRef.current) {
       observer = new ResizeObserver(() => updateHeight());
       observer.observe(contentRef.current);
     }
-    window.addEventListener('resize', updateHeight);
+    window.addEventListener("resize", updateHeight);
     return () => {
-      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener("resize", updateHeight);
       if (observer) observer.disconnect();
     };
   }, [children, isOpen]);
@@ -59,9 +59,9 @@ export default function CollapsiblePanel({
       <div
         className="overflow-hidden transition-[max-height,opacity,margin] duration-300 ease-in-out"
         style={{
-          maxHeight: isOpen ? `${contentHeight + 24}px` : '0px',
+          maxHeight: isOpen ? `${contentHeight + 24}px` : "0px",
           opacity: isOpen ? 1 : 0,
-          marginTop: isOpen ? '12px' : '0px',
+          marginTop: isOpen ? "12px" : "0px",
         }}
       >
         <div ref={contentRef} className={contentClassName}>

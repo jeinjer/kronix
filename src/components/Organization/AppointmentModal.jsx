@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Loader2, Pencil, XCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { getStaffAvailableSlots } from '@/supabase/services/availability';
+import React, { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { Loader2, Pencil, XCircle } from "lucide-react";
+import { toast } from "sonner";
+import { getStaffAvailableSlots } from "@/supabase/services/availability";
 import {
   formatAppointmentDate,
   checkStaffAvailability,
@@ -10,16 +10,16 @@ import {
   formatAppointmentTime,
   localDateTimeToUtcIso,
   updateAppointmentById,
-} from '@/supabase/services/appointments';
+} from "@/supabase/services/appointments";
 
 const PHONE_REGEX = /^[0-9+\-\s()]{6,20}$/;
 
 const toHHMM = (isoString, timeZone) => {
-  if (!isoString) return '';
-  return new Intl.DateTimeFormat('en-GB', {
+  if (!isoString) return "";
+  return new Intl.DateTimeFormat("en-GB", {
     timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   }).format(new Date(isoString));
 };
@@ -43,17 +43,21 @@ export default function AppointmentModal({
   }, [appointment?.end_time]);
 
   const durationMs = useMemo(() => {
-    if (!appointment?.start_time || !appointment?.end_time) return 30 * 60 * 1000;
-    return new Date(appointment.end_time).getTime() - new Date(appointment.start_time).getTime();
+    if (!appointment?.start_time || !appointment?.end_time)
+      return 30 * 60 * 1000;
+    return (
+      new Date(appointment.end_time).getTime() -
+      new Date(appointment.start_time).getTime()
+    );
   }, [appointment?.start_time, appointment?.end_time]);
 
   const initialDate = useMemo(
     () => formatAppointmentDateForInput(appointment?.start_time, timeZone),
-    [appointment?.start_time, timeZone]
+    [appointment?.start_time, timeZone],
   );
   const initialTime = useMemo(
     () => toHHMM(appointment?.start_time, timeZone),
-    [appointment?.start_time, timeZone]
+    [appointment?.start_time, timeZone],
   );
 
   const {
@@ -68,28 +72,28 @@ export default function AppointmentModal({
     formState: { errors },
   } = useForm({
     defaultValues: {
-      client_name: '',
-      client_phone: '',
-      staff_id: '',
-      date: '',
-      time: '',
+      client_name: "",
+      client_phone: "",
+      staff_id: "",
+      date: "",
+      time: "",
     },
   });
 
   useEffect(() => {
     if (!appointment) return;
     reset({
-      client_name: appointment.client_name || '',
-      client_phone: appointment.client_phone || '',
-      staff_id: appointment.staff_id || '',
+      client_name: appointment.client_name || "",
+      client_phone: appointment.client_phone || "",
+      staff_id: appointment.staff_id || "",
       date: formatAppointmentDateForInput(appointment.start_time, timeZone),
       time: toHHMM(appointment.start_time, timeZone),
     });
     setEditMode(false);
   }, [appointment, reset, timeZone]);
 
-  const watchedStaffId = watch('staff_id');
-  const watchedDate = watch('date');
+  const watchedStaffId = watch("staff_id");
+  const watchedDate = watch("date");
 
   useEffect(() => {
     const loadAvailableTimes = async () => {
@@ -97,9 +101,12 @@ export default function AppointmentModal({
       if (!watchedStaffId || !watchedDate) return;
 
       setLoadingTimes(true);
-      clearErrors('root');
+      clearErrors("root");
 
-      const durationMinutes = Math.max(30, Math.round(durationMs / (60 * 1000)));
+      const durationMinutes = Math.max(
+        30,
+        Math.round(durationMs / (60 * 1000)),
+      );
       const selectedDateObj = new Date(`${watchedDate}T00:00:00`);
       const { data, error } = await getStaffAvailableSlots({
         staffId: watchedStaffId,
@@ -123,13 +130,20 @@ export default function AppointmentModal({
       setAvailableTimes(uniqueOptions);
 
       if (!uniqueOptions.length) {
-        setError('time', { type: 'manual', message: 'No hay horarios disponibles para ese empleado en esa fecha.' });
+        setError("time", {
+          type: "manual",
+          message:
+            "No hay horarios disponibles para ese empleado en esa fecha.",
+        });
       } else {
-        const currentTime = getValues('time');
-        clearErrors('time');
+        const currentTime = getValues("time");
+        clearErrors("time");
         if (currentTime && !uniqueOptions.includes(currentTime)) {
-          setValue('time', '', { shouldValidate: true, shouldDirty: true });
-          setError('time', { type: 'manual', message: 'Selecciona un horario disponible.' });
+          setValue("time", "", { shouldValidate: true, shouldDirty: true });
+          setError("time", {
+            type: "manual",
+            message: "Selecciona un horario disponible.",
+          });
         }
       }
 
@@ -153,26 +167,38 @@ export default function AppointmentModal({
 
   if (!isOpen || !appointment) return null;
 
-  const currentStaff = staffOptions.find((item) => item.id === appointment.staff_id);
+  const currentStaff = staffOptions.find(
+    (item) => item.id === appointment.staff_id,
+  );
 
   const onSubmit = async (values) => {
     if (isPastAppointment) {
-      toast.error('No se pueden modificar turnos pasados.');
+      toast.error("No se pueden modificar turnos pasados.");
       return;
     }
 
     if (!values.client_name?.trim()) {
-      setError('client_name', { type: 'manual', message: 'Ingresa el nombre del cliente.' });
+      setError("client_name", {
+        type: "manual",
+        message: "Ingresa el nombre del cliente.",
+      });
       return;
     }
-    if (values.client_phone?.trim() && !PHONE_REGEX.test(values.client_phone.trim())) {
-      setError('client_phone', { type: 'manual', message: 'Telefono invalido.' });
+    if (
+      values.client_phone?.trim() &&
+      !PHONE_REGEX.test(values.client_phone.trim())
+    ) {
+      setError("client_phone", {
+        type: "manual",
+        message: "Telefono invalido.",
+      });
       return;
     }
 
     const changedContact =
-      values.client_name.trim() !== (appointment.client_name || '').trim() ||
-      (values.client_phone || '').trim() !== (appointment.client_phone || '').trim();
+      values.client_name.trim() !== (appointment.client_name || "").trim() ||
+      (values.client_phone || "").trim() !==
+        (appointment.client_phone || "").trim();
 
     const changedSchedule =
       values.staff_id !== appointment.staff_id ||
@@ -180,7 +206,7 @@ export default function AppointmentModal({
       values.time !== initialTime;
 
     if (!changedContact && !changedSchedule) {
-      toast.message('No hay cambios para guardar.');
+      toast.message("No hay cambios para guardar.");
       return;
     }
 
@@ -196,9 +222,9 @@ export default function AppointmentModal({
       });
 
       if (error) {
-        toast.error('No se pudieron guardar los cambios.');
+        toast.error("No se pudieron guardar los cambios.");
       } else {
-        toast.success('Turno actualizado.');
+        toast.success("Turno actualizado.");
         onSuccess?.(updatedAppointment);
         onClose?.();
       }
@@ -206,38 +232,48 @@ export default function AppointmentModal({
       return;
     }
 
-    const newStartIso = localDateTimeToUtcIso(values.date, values.time, timeZone);
+    const newStartIso = localDateTimeToUtcIso(
+      values.date,
+      values.time,
+      timeZone,
+    );
     if (!newStartIso) {
-      setError('time', { type: 'manual', message: 'Fecha u hora invalida.' });
+      setError("time", { type: "manual", message: "Fecha u hora invalida." });
       setLoading(false);
       return;
     }
 
     if (!values.time) {
-      setError('time', { type: 'manual', message: 'Selecciona un horario disponible.' });
+      setError("time", {
+        type: "manual",
+        message: "Selecciona un horario disponible.",
+      });
       setLoading(false);
       return;
     }
 
-    const newEndIso = new Date(new Date(newStartIso).getTime() + durationMs).toISOString();
+    const newEndIso = new Date(
+      new Date(newStartIso).getTime() + durationMs,
+    ).toISOString();
 
-    const { isAvailable, error: availabilityError } = await checkStaffAvailability({
-      staffId: values.staff_id,
-      startTime: newStartIso,
-      endTime: newEndIso,
-      excludeAppointmentId: appointment.id,
-    });
+    const { isAvailable, error: availabilityError } =
+      await checkStaffAvailability({
+        staffId: values.staff_id,
+        startTime: newStartIso,
+        endTime: newEndIso,
+        excludeAppointmentId: appointment.id,
+      });
 
     if (availabilityError) {
-      toast.error('No se pudo validar disponibilidad del empleado.');
+      toast.error("No se pudo validar disponibilidad del empleado.");
       setLoading(false);
       return;
     }
 
     if (!isAvailable) {
-      setError('root', {
-        type: 'manual',
-        message: 'Ese empleado ya esta ocupado en ese horario. Elige otro.',
+      setError("root", {
+        type: "manual",
+        message: "Ese empleado ya esta ocupado en ese horario. Elige otro.",
       });
       setLoading(false);
       return;
@@ -254,22 +290,22 @@ export default function AppointmentModal({
       },
     });
 
-    if (error?.code === '23P01') {
-      setError('root', {
-        type: 'manual',
-        message: 'Ese empleado ya esta ocupado en ese horario. Elige otro.',
+    if (error?.code === "23P01") {
+      setError("root", {
+        type: "manual",
+        message: "Ese empleado ya esta ocupado en ese horario. Elige otro.",
       });
       setLoading(false);
       return;
     }
 
     if (error) {
-      toast.error('No se pudieron guardar los cambios.');
+      toast.error("No se pudieron guardar los cambios.");
       setLoading(false);
       return;
     }
 
-    toast.success('Turno actualizado.');
+    toast.success("Turno actualizado.");
     setLoading(false);
     onSuccess?.(updatedAppointment);
     onClose?.();
@@ -297,24 +333,34 @@ export default function AppointmentModal({
             <div className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-white/[0.02]">
               <p className="text-sm flex items-center gap-1 min-w-0">
                 <span className="font-bold shrink-0">Cliente:</span>
-                <span className="truncate min-w-0" title={appointment.client_name || 'Sin nombre'}>
+                <span
+                  className="truncate min-w-0"
+                  title={appointment.client_name || "Sin nombre"}
+                >
                   {appointment.client_name}
                 </span>
               </p>
-              <p className="text-sm mt-1"><span className="font-bold">Telefono:</span> {appointment.client_phone || 'Sin telefono'}</p>
+              <p className="text-sm mt-1">
+                <span className="font-bold">Telefono:</span>{" "}
+                {appointment.client_phone || "Sin telefono"}
+              </p>
               <p className="text-sm mt-1 flex items-center gap-1 min-w-0">
                 <span className="font-bold shrink-0">Empleado:</span>
-                <span className="truncate min-w-0" title={currentStaff?.name || 'Sin staff'}>
-                  {currentStaff?.name || 'Sin staff'}
+                <span
+                  className="truncate min-w-0"
+                  title={currentStaff?.name || "Sin staff"}
+                >
+                  {currentStaff?.name || "Sin staff"}
                 </span>
               </p>
               <p className="text-sm mt-1">
-                <span className="font-bold">Dia:</span>{' '}
+                <span className="font-bold">Dia:</span>{" "}
                 {formatAppointmentDate(appointment.start_time, timeZone)}
               </p>
               <p className="text-sm mt-1">
-                <span className="font-bold">Horario:</span>{' '}
-                {formatAppointmentTime(appointment.start_time, timeZone)} - {formatAppointmentTime(appointment.end_time, timeZone)}
+                <span className="font-bold">Horario:</span>{" "}
+                {formatAppointmentTime(appointment.start_time, timeZone)} -{" "}
+                {formatAppointmentTime(appointment.end_time, timeZone)}
               </p>
             </div>
 
@@ -347,27 +393,41 @@ export default function AppointmentModal({
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Nombre Cliente</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Nombre Cliente
+                </label>
                 <input
-                  {...register('client_name')}
+                  {...register("client_name")}
                   className="w-full mt-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                 />
-                {errors.client_name ? <p className="text-xs text-rose-500 mt-1">{errors.client_name.message}</p> : null}
+                {errors.client_name ? (
+                  <p className="text-xs text-rose-500 mt-1">
+                    {errors.client_name.message}
+                  </p>
+                ) : null}
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Telefono</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Telefono
+                </label>
                 <input
-                  {...register('client_phone')}
+                  {...register("client_phone")}
                   className="w-full mt-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                 />
-                {errors.client_phone ? <p className="text-xs text-rose-500 mt-1">{errors.client_phone.message}</p> : null}
+                {errors.client_phone ? (
+                  <p className="text-xs text-rose-500 mt-1">
+                    {errors.client_phone.message}
+                  </p>
+                ) : null}
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Empleado</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Empleado
+                </label>
                 <select
-                  {...register('staff_id')}
+                  {...register("staff_id")}
                   className="w-full mt-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                 >
                   {staffOptions.map((staff) => (
@@ -380,25 +440,33 @@ export default function AppointmentModal({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Fecha</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Fecha
+                  </label>
                   <input
                     type="date"
-                    {...register('date')}
+                    {...register("date")}
                     className="w-full mt-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Hora</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Hora
+                  </label>
                   <select
-                    {...register('time')}
+                    {...register("time")}
                     className="w-full mt-1 bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                     disabled={loadingTimes || !availableTimes.length}
                   >
                     <option value="" disabled>
                       Seleccionar
                     </option>
-                    {loadingTimes ? <option value="">Cargando...</option> : null}
-                    {!loadingTimes && !availableTimes.length ? <option value="">Sin horarios</option> : null}
+                    {loadingTimes ? (
+                      <option value="">Cargando...</option>
+                    ) : null}
+                    {!loadingTimes && !availableTimes.length ? (
+                      <option value="">Sin horarios</option>
+                    ) : null}
                     {!loadingTimes
                       ? availableTimes.map((option) => (
                           <option key={option} value={option}>
@@ -407,7 +475,11 @@ export default function AppointmentModal({
                         ))
                       : null}
                   </select>
-                  {errors.time ? <p className="text-xs text-rose-500 mt-1">{errors.time.message}</p> : null}
+                  {errors.time ? (
+                    <p className="text-xs text-rose-500 mt-1">
+                      {errors.time.message}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -431,7 +503,9 @@ export default function AppointmentModal({
                 disabled={loading}
                 className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold disabled:opacity-60"
               >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+                {loading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : null}
                 Guardar Cambios
               </button>
             </div>

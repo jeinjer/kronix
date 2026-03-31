@@ -2,13 +2,13 @@
 
 export const DEFAULT_PROFILE_REFETCH_THROTTLE_MS = 15 * 60 * 1000; // 15 minutos
 
-export const isTokenRefreshEvent = (event) => event === 'TOKEN_REFRESHED';
+export const isTokenRefreshEvent = (event) => event === "TOKEN_REFRESHED";
 
 export const isProfileSensitiveEvent = (event) =>
-  event === 'BOOT' ||
-  event === 'SIGNED_IN' ||
-  event === 'INITIAL_SESSION' ||
-  event === 'USER_UPDATED';
+  event === "BOOT" ||
+  event === "SIGNED_IN" ||
+  event === "INITIAL_SESSION" ||
+  event === "USER_UPDATED";
 
 export const shouldRefetchProfile = ({
   event,
@@ -27,7 +27,7 @@ export const shouldRefetchProfile = ({
   if (isProfileSensitiveEvent(event)) {
     // SI ES UN CHEQUEO DE PESTAÑA (BOOT/INITIAL) Y EL PERFIL ES RECIENTE:
     // No recargar para evitar el parpadeo de la página.
-    if ((event === 'BOOT' || event === 'INITIAL_SESSION') && age < 60000) {
+    if ((event === "BOOT" || event === "INITIAL_SESSION") && age < 60000) {
       return false;
     }
     return true;
