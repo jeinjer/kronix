@@ -5,7 +5,7 @@ import {
   useLocation,
   useSearchParams,
 } from "react-router-dom";
-import { LogOut, User, ChevronRight, MapPin, Search } from "lucide-react";
+import { LogOut, User, ChevronRight, MapPin, Search, Briefcase } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocationContext } from "@/context/LocationContext";
 import { isSuperAdminUser } from "@/utils/superAdmin";
@@ -99,9 +99,9 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Definimos si estamos en una página de autenticación
-  const isAuthPage =
-    location.pathname === "/login" || location.pathname === "/registro";
+  // Definimos si estamos en una página de autenticación o negocios
+  const isAuthPage = location.pathname.includes("/login") || location.pathname.includes("/registro");
+  const isBusinessPage = location.pathname.startsWith("/negocios");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -425,18 +425,30 @@ export default function Header() {
             </div>
           ) : (
             !isAuthPage && (
-              <div className="flex items-center gap-2 sm:gap-4 ml-2">
+              <div className="flex items-center gap-2 sm:gap-3 ml-2">
                 <Link
-                  to="/login"
-                  className="text-sm font-bold text-slate-700 hover:text-slate-900 transition-colors"
+                  to={isBusinessPage ? "/" : "/negocios"}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-cyan-600 transition-all shadow-sm"
+                >
+                  {isBusinessPage ? <User size={14} /> : <Briefcase size={14} />}
+                  <span className="hidden sm:inline">
+                    {isBusinessPage ? "Soy Cliente" : "Soy Negocio"}
+                  </span>
+                </Link>
+
+                <div className="h-4 w-[1px] bg-slate-200 hidden sm:block mx-1"></div>
+
+                <Link
+                  to={isBusinessPage ? "/negocios/login" : "/login"}
+                  className="text-sm font-bold text-slate-700 hover:text-cyan-600 transition-colors px-2 hidden sm:block"
                 >
                   Ingresar
                 </Link>
                 <Link
-                  to="/registro"
-                  className="px-5 py-2.5 bg-cyan-600 text-white text-sm font-black rounded-full hover:bg-cyan-500 transition-colors shadow-sm whitespace-nowrap"
+                  to={isBusinessPage ? "/negocios/registro" : "/registro"}
+                  className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md whitespace-nowrap"
                 >
-                  Crear cuenta
+                  Registrarme
                 </Link>
               </div>
             )

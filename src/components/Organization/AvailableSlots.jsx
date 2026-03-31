@@ -318,8 +318,17 @@ export default function AvailableSlots({
   };
 
   const openBookingModal = (slot) => {
+    if (isPublicMode && !user) {
+      toast.error("Debes iniciar sesión para reservar turnos.", {
+        action: {
+          label: "Ingresar",
+          onClick: () => window.location.href = "/login"
+        }
+      });
+      return;
+    }
     setBookingSlot(slot);
-    setClientName("");
+    setClientName(user?.user_metadata?.full_name || "");
     setClientPhone("");
     setBookingModalOpen(true);
   };

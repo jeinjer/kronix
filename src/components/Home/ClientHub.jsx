@@ -249,6 +249,7 @@ export default function ClientHub() {
 
               <div className="flex-1 rounded-[1.2rem] relative overflow-hidden bg-slate-100 border border-slate-200">
                 <MapContainer
+                  key={`map-${userLocation?.cityId || 'default'}`}
                   center={
                     businesses.length > 0 && businesses[0].lat && businesses[0].lon
                       ? [businesses[0].lat, businesses[0].lon]

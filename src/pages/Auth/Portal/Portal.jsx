@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -12,6 +12,8 @@ import {
   ArrowRight,
   Layers,
   Zap,
+  User,
+  Briefcase
 } from "lucide-react";
 import { supabase } from "@/supabase/supabaseClient";
 import { toast } from "sonner";
@@ -21,13 +23,13 @@ import HomeLoader from "@/components/Loaders/HomeLoader";
 import { loadUserProfile } from "@/context/auth/profileService";
 import { isSuperAdminUser } from "@/utils/superAdmin";
 
-export default function AuthPortal() {
+export default function AuthPortal({ isBusinessMode = false }) {
   const REGISTER_RETRY_DELAY_MS = 3000;
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isLogin, setIsLogin] = useState(location.pathname !== "/registro");
+  const [isLogin, setIsLogin] = useState(location.pathname.includes("/login"));
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [registerRetryBlocked, setRegisterRetryBlocked] = useState(false);
@@ -43,7 +45,8 @@ export default function AuthPortal() {
   const toggleMode = () => {
     const newMode = !isLogin;
     setIsLogin(newMode);
-    window.history.pushState(null, "", newMode ? "/login" : "/registro");
+    const basePath = isBusinessMode ? "/negocios" : "";
+    window.history.pushState(null, "", basePath + (newMode ? "/login" : "/registro"));
   };
 
   // 🔑 VALIDACIONES REALES (ACÁ ESTÁ LA CLAVE)
@@ -136,24 +139,29 @@ export default function AuthPortal() {
           replace: true,
         });
       } else {
-        const { data: invitacion } = await supabase
-          .from("saas_invitations")
-          .select("status")
-          .eq("email", email)
-          .maybeSingle();
+        if (isBusinessMode) {
+          const { data: invitacion } = await supabase
+            .from("saas_invitations")
+            .select("status")
+            .eq("email", email)
+            .maybeSingle();
 
-        if (!invitacion) {
-          throw new Error("Este email no tiene invitación.");
+          if (!invitacion) {
+            throw new Error("Este email no tiene invitación técnica.");
+          }
+
+          const inviteStatus = String(invitacion.status ?? "").toLowerCase();
+          if (
+            ["inactive", "revoked", "blocked", "banned"].includes(inviteStatus)
+          ) {
+            throw new Error("Tu invitación está inactiva.");
+          }
         }
 
-        const inviteStatus = String(invitacion.status ?? "").toLowerCase();
-        if (
-          ["inactive", "revoked", "blocked", "banned"].includes(inviteStatus)
-        ) {
-          throw new Error("Tu invitación está inactiva.");
-        }
-
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+        });
         if (error) throw error;
 
         toast.success("Cuenta creada. Verificá tu correo.");
@@ -184,7 +192,56 @@ export default function AuthPortal() {
   }
 
   return (
-    <div className="flex items-center justify-center py-10 px-4">
+    <div className="flex flex-col items-center justify-center py-6 px-4 min-h-[calc(100vh-80px)] xl:min-h-screen relative">
+      {/* HEADER SECTION (Max width 1000px to align with the form) */}
+      <div className="w-full max-w-[1000px] flex items-center justify-between mb-8 relative">
+        {/* LEFT: BACK BUTTON */}
+        <div className="flex-1 flex justify-start">
+          <button 
+            onClick={() => {
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                navigate(isBusinessMode ? "/negocios" : "/");
+              }
+            }} 
+            className="flex items-center gap-2 p-2 rounded-xl text-slate-500 hover:text-cyan-600 transition-all group cursor-pointer bg-transparent"
+          >
+            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="hidden md:block font-bold mt-0.5">Volver atrás</span>
+          </button>
+        </div>
+
+        {/* CENTER: MODE SWITCHER PILL */}
+        <div className="flex justify-center flex-shrink-0">
+          <div className="overflow-hidden rounded-full p-1 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 shadow-sm flex items-center relative z-10">
+            <Link
+              to={isLogin ? "/login" : "/registro"}
+              className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                !isBusinessMode 
+                  ? "bg-cyan-600 text-white shadow-md scale-100" 
+                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
+              }`}
+            >
+              <User size={16} /> Portal Clientes
+            </Link>
+            <Link
+              to={isLogin ? "/negocios/login" : "/negocios/registro"}
+              className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                isBusinessMode 
+                  ? "bg-indigo-900 text-white shadow-md scale-100" 
+                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
+              }`}
+            >
+              <Briefcase size={16} /> Módulo Negocios
+            </Link>
+          </div>
+        </div>
+
+        {/* RIGHT: SPACER TO BALANCE CENTER */}
+        <div className="flex-1"></div>
+      </div>
+
       <div className="relative w-full max-w-[1000px] h-[650px] bg-white dark:bg-[#13131a] rounded-[2rem] shadow-2xl overflow-hidden border dark:border-white/5">
         {/* LOGIN */}
         <motion.div
@@ -193,8 +250,8 @@ export default function AuthPortal() {
           transition={spring}
         >
           <Header
-            title="Bienvenido"
-            subtitle="Gestión inteligente para tu negocio."
+            title={isBusinessMode ? "Portal de Negocios" : "Bienvenido"}
+            subtitle={isBusinessMode ? "Gestión inteligente para tu emprendimiento." : "Inicia sesión para reservar tus turnos."}
           />
           <FormContent
             isLogin
@@ -208,6 +265,7 @@ export default function AuthPortal() {
             loading={loading}
             valid={isFormValid}
             registerRetryBlocked={registerRetryBlocked}
+            isBusinessMode={isBusinessMode}
           />
         </motion.div>
 
@@ -218,8 +276,8 @@ export default function AuthPortal() {
           transition={spring}
         >
           <Header
-            title="Activar Cuenta"
-            subtitle="Exclusivo para clientes con suscripción."
+            title={isBusinessMode ? "Activar Negocio" : "Crear Cuenta"}
+            subtitle={isBusinessMode ? "Exclusivo para negocios con invitación SaaS." : "Comienza a reservar tus turnos en segundos."}
           />
           <FormContent
             isLogin={false}
@@ -238,6 +296,7 @@ export default function AuthPortal() {
             loading={loading}
             valid={isFormValid}
             registerRetryBlocked={registerRetryBlocked}
+            isBusinessMode={isBusinessMode}
           />
         </motion.div>
 
@@ -247,7 +306,9 @@ export default function AuthPortal() {
           animate={{ x: isLogin ? "100%" : "0%" }}
           transition={spring}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-[#020617]" />
+          <div 
+            className={`absolute inset-0 bg-gradient-to-br ${isBusinessMode ? "from-indigo-900 to-[#020617]" : "from-cyan-600 to-cyan-900"}`} 
+          />
           <div className="relative h-full flex flex-col items-center justify-center text-white p-12 text-center">
             <div className="mb-6 p-4 bg-white/10 rounded-full">
               {isLogin ? <Zap size={40} /> : <Layers size={40} />}
@@ -257,8 +318,12 @@ export default function AuthPortal() {
             </h2>
             <p className="mb-8 opacity-80">
               {isLogin
-                ? "Activá tu cuenta SaaS desde acá."
-                : "Ingresá al dashboard para gestionar tu negocio."}
+                ? isBusinessMode
+                  ? "Activá tu cuenta de negocio SaaS desde acá."
+                  : "Registrate gratis para agendar turnos rápidos."
+                : isBusinessMode
+                  ? "Ingresá al dashboard para gestionar tu negocio."
+                  : "Ingresá a tu cuenta para ver tus turnos."}
             </p>
             <button
               onClick={toggleMode}
@@ -266,7 +331,7 @@ export default function AuthPortal() {
             >
               {isLogin ? (
                 <>
-                  ACTIVAR MEMBRESÍA
+                  {isBusinessMode ? "ACTIVAR NEGOCIO" : "CREAR CUENTA"}
                   <ArrowRight size={20} />
                 </>
               ) : (
@@ -311,6 +376,7 @@ function FormContent({
   loading,
   valid,
   registerRetryBlocked = false,
+  isBusinessMode = false,
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4" autoComplete="on">
@@ -366,7 +432,9 @@ function FormContent({
 
       <button
         disabled={!valid || loading}
-        className="w-full py-4 bg-cyan-600 text-white font-black rounded-xl disabled:opacity-30 cursor-pointer"
+        className={`w-full py-4 text-white font-black rounded-xl disabled:opacity-30 cursor-pointer ${
+          isBusinessMode ? "bg-indigo-600 hover:bg-indigo-500" : "bg-cyan-600 hover:bg-cyan-500"
+        }`}
       >
         {loading
           ? "PROCESANDO…"

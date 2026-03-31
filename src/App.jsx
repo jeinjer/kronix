@@ -13,6 +13,7 @@ import ScrollToTop from './utils/ScrollToTop';
 import { SuperAdminRoute, DashboardRoute, BusinessRoute, ProtectedRoute } from './utils/ProtectedRoutes';
 
 import Home from './pages/Home/Home';
+import BusinessHome from './pages/Home/BusinessHome';
 import AuthPortal from './pages/Auth/Portal/Portal';
 import ForgotPassword from './pages/Auth/ForgotPassword/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword/ResetPassword';
@@ -68,6 +69,20 @@ function AppContent() {
             <Route 
               path="/registro" 
               element={renderPublicEntry(<AuthPortal />)} 
+            />
+
+            {/* RUTAS EXCLUSIVAS PARA DUEÑOS DE NEGOCIO */}
+            <Route 
+              path="/negocios" 
+              element={<BusinessHome />} 
+            />
+            <Route 
+              path="/negocios/login" 
+              element={renderPublicEntry(<AuthPortal isBusinessMode={true} />)} 
+            />
+            <Route 
+              path="/negocios/registro" 
+              element={renderPublicEntry(<AuthPortal isBusinessMode={true} />)} 
             />
 
             <Route 
