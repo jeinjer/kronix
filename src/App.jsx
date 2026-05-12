@@ -24,6 +24,7 @@ import UserPanel from './pages/UserPanel/UserPanel';
 import MisTurnos from './pages/MisTurnos/MisTurnos';
 import PublicBooking from './pages/PublicBooking/PublicBooking';
 import Onboarding from './pages/Onboarding/Onboarding';
+import PaymentPage from './pages/Subscription/PaymentPage';
 
 import NotFoundPage from './pages/NotFound/404';
 import { isSuperAdminUser } from './utils/superAdmin';
@@ -84,6 +85,10 @@ function AppContent() {
               path="/negocios/registro" 
               element={renderPublicEntry(<AuthPortal isBusinessMode={true} />)} 
             />
+            <Route 
+              path="/pago-suscripcion" 
+              element={<PaymentPage />} 
+            />
 
             <Route 
               path="/reserva/:slug" 
@@ -99,7 +104,7 @@ function AppContent() {
 
             <Route element={<BusinessRoute />}>
               <Route path="/dashboard" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <UserPanel />} />
-              <Route path="/dashboard/:slug" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
+              <Route path="/dashboard/:slug/*" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
             </Route>
             
             <Route element={<ProtectedRoute />}>

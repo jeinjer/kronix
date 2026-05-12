@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/supabase/supabaseClient"; // Solo para invitaciones (si no las moviste al servicio)
+import { supabase } from "@/supabase/supabaseClient";
 import { toast } from "sonner";
 import {
   ShieldCheck,
@@ -10,8 +10,8 @@ import {
   CreditCard,
   Search,
 } from "lucide-react";
+import EmptyState from "@/components/UI/EmptyState";
 
-// IMPORTAMOS EL SERVICIO NUEVO
 import {
   getAllSubscriptions,
   updateSubscriptionStatus,
@@ -19,7 +19,6 @@ import {
 } from "@/supabase/services/subscriptions";
 
 export default function SuperAdminDashboard() {
-  // --- Estado: Invitaciones ---
   const [invites, setInvites] = useState([]);
   const [invitesLoading, setInvitesLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -27,11 +26,9 @@ export default function SuperAdminDashboard() {
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteSearch, setInviteSearch] = useState("");
 
-  // --- Estado: Suscripciones ---
   const [subs, setSubs] = useState([]);
   const [subsLoading, setSubsLoading] = useState(true);
 
-  // --- Lógica: Invitaciones (Se mantiene igual por ahora) ---
   const fetchInvites = async () => {
     setInvitesLoading(true);
     try {
@@ -39,7 +36,6 @@ export default function SuperAdminDashboard() {
         .from("saas_invitations")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       setInvites(data || []);
     } catch (e) {
@@ -53,7 +49,6 @@ export default function SuperAdminDashboard() {
   const handleInviteCreate = async (e) => {
     e.preventDefault();
     if (!inviteEmail) return;
-
     setInviteSubmitting(true);
     try {
       const payload = {
@@ -65,7 +60,6 @@ export default function SuperAdminDashboard() {
         .from("saas_invitations")
         .insert([payload]);
       if (error) throw error;
-
       toast.success("Invitación creada");
       setInviteEmail("");
       await fetchInvites();
@@ -92,12 +86,9 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  // --- LÓGICA NUEVA: USANDO EL SERVICIO DE SUSCRIPCIONES ---
-
   const fetchSubscriptions = async () => {
     setSubsLoading(true);
     try {
-      // Llamada limpia al servicio (usa la Vista SQL por detrás)
       const data = await getAllSubscriptions();
       setSubs(data);
     } catch (e) {
@@ -110,7 +101,6 @@ export default function SuperAdminDashboard() {
 
   const handleRegisterPayment = async (subscriptionId, currentValidUntil) => {
     try {
-      // La lógica de fechas ahora está encapsulada en el servicio
       await extendSubscription(subscriptionId, currentValidUntil);
       toast.success("Pago registrado. Acceso extendido 30 días.");
       await fetchSubscriptions();
@@ -147,62 +137,61 @@ export default function SuperAdminDashboard() {
   }, [invites, inviteSearch]);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#050507] text-slate-800 dark:text-slate-200 p-6 md:p-10 pb-20 transition-colors duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20 text-indigo-400">
-              <ShieldCheck size={24} />
-            </div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">
-              Panel de administración
-            </h1>
+    <div className="max-w-[1200px] mx-auto px-4 py-8 font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif]">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 pt-4 gap-6">
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 bg-cyan-400 border-4 border-slate-900 shadow-[4px_4px_0_0_#0f172a] flex items-center justify-center text-slate-900 -rotate-3">
+            <ShieldCheck size={32} strokeWidth={2} />
           </div>
-          <p className="text-slate-500 text-sm font-medium ml-1">
-            Gestión de usuarios VIP y Suscripciones.
-          </p>
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">
+              Panel de Administración
+            </h1>
+            <p className="text-slate-900 bg-cyan-400 px-2 py-0.5 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] text-[10px] font-black uppercase tracking-widest w-fit mt-1">
+              Gestión de usuarios y suscripciones
+            </p>
+          </div>
         </div>
 
         <div className="flex gap-4">
-          <div className="px-4 py-2 bg-white dark:bg-[#13131a] rounded-xl border border-slate-200 dark:border-white/5 text-center transition-colors duration-500">
-            <span className="block text-xs text-slate-500 uppercase font-bold">
-              Invitaciones
-            </span>
-            <span className="text-xl font-black text-slate-900 dark:text-white">
-              {invites.length}
-            </span>
-          </div>
-          <div className="px-4 py-2 bg-white dark:bg-[#13131a] rounded-xl border border-slate-200 dark:border-white/5 text-center transition-colors duration-500">
-            <span className="block text-xs text-slate-500 uppercase font-bold">
-              Suscripciones
-            </span>
-            <span className="text-xl font-black text-slate-900 dark:text-white">
-              {subs.length}
-            </span>
-          </div>
+          {[
+            { label: "Invitaciones", value: invites.length, color: "bg-cyan-400" },
+            { label: "Suscripciones", value: subs.length, color: "bg-yellow-400" },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className="px-6 py-4 bg-white border-4 border-slate-900 shadow-[6px_6px_0_0_#0f172a] text-center"
+            >
+              <span className="block text-[10px] text-slate-900 uppercase font-black tracking-widest mb-1">
+                {stat.label}
+              </span>
+              <span className="text-3xl font-black text-slate-900 tracking-tighter">
+                {stat.value}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* SECCIÓN INVITACIONES (Sin cambios visuales) */}
-      <section className="bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-8 mb-8 transition-colors duration-500">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      {/* INVITATIONS SECTION */}
+      <section className="bg-white border-4 border-slate-900 shadow-[8px_8px_0_0_#0f172a] p-6 md:p-8 mb-10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 border-b-4 border-slate-900 pb-4">
           <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
               Invitaciones
             </h2>
-            <p className="text-sm text-slate-500">
-              Controla qué emails pueden registrarse.
+            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mt-1">
+              Controla qué emails pueden registrarse
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={fetchInvites}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 flex items-center gap-2 transition-colors"
-              type="button"
-            >
-              <RefreshCw size={16} /> Refrescar
-            </button>
-          </div>
+          <button
+            onClick={fetchInvites}
+            className="px-4 py-2 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:-translate-y-0.5 hover:-translate-x-0.5 hover:shadow-[4px_4px_0_0_#0f172a] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 font-black text-xs uppercase tracking-widest text-slate-900"
+            type="button"
+          >
+            <RefreshCw size={14} strokeWidth={3} /> Refrescar
+          </button>
         </div>
 
         <form
@@ -213,7 +202,7 @@ export default function SuperAdminDashboard() {
             <input
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl bg-slate-100 dark:bg-[#0b0b10] border border-slate-300 dark:border-white/10 outline-none transition-colors"
+              className="w-full px-4 py-3 bg-white border-4 border-slate-900 shadow-[4px_4px_0_0_#0f172a] outline-none font-black text-sm text-slate-900 focus:translate-x-1 focus:translate-y-1 focus:shadow-none transition-all"
               placeholder="email@cliente.com"
               type="email"
               required
@@ -223,7 +212,7 @@ export default function SuperAdminDashboard() {
             <select
               value={invitePlan}
               onChange={(e) => setInvitePlan(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl bg-slate-100 dark:bg-[#0b0b10] border border-slate-300 dark:border-white/10 outline-none transition-colors"
+              className="w-full px-4 py-3 bg-white border-4 border-slate-900 shadow-[4px_4px_0_0_#0f172a] outline-none font-black text-sm text-slate-900 appearance-none cursor-pointer"
             >
               <option value="free">free</option>
               <option value="pro">pro</option>
@@ -233,22 +222,23 @@ export default function SuperAdminDashboard() {
           <div className="md:col-span-3">
             <button
               disabled={inviteSubmitting}
-              className="w-full px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition font-black flex items-center justify-center gap-2 disabled:opacity-50 text-white"
+              className="w-full px-4 py-3 bg-yellow-400 border-4 border-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:-translate-y-0.5 hover:-translate-x-0.5 hover:shadow-[6px_6px_0_0_#0f172a] active:shadow-none active:translate-y-1 active:translate-x-1 transition-all font-black flex items-center justify-center gap-2 disabled:opacity-50 text-slate-900 uppercase tracking-widest text-xs"
               type="submit"
             >
-              <UserPlus size={16} /> Crear invitación
+              <UserPlus size={16} strokeWidth={3} /> Crear
             </button>
           </div>
           <div className="md:col-span-12">
             <div className="relative">
               <Search
                 size={16}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                strokeWidth={3}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-900"
               />
               <input
                 value={inviteSearch}
                 onChange={(e) => setInviteSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-100 dark:bg-[#0b0b10] border border-slate-300 dark:border-white/10 outline-none transition-colors"
+                className="w-full pl-11 pr-4 py-3 bg-white border-4 border-slate-900 shadow-[4px_4px_0_0_#0f172a] outline-none font-black text-sm text-slate-900 focus:translate-x-1 focus:translate-y-1 focus:shadow-none transition-all"
                 placeholder="Buscar por email"
                 type="text"
               />
@@ -256,221 +246,182 @@ export default function SuperAdminDashboard() {
           </div>
         </form>
 
-        <div className="overflow-x-auto border border-slate-300 dark:border-white/10 rounded-2xl">
+        <div className="overflow-x-auto border-4 border-slate-900">
           <table className="w-full text-left">
-            <thead className="bg-slate-100 dark:bg-white/[0.03]">
+            <thead className="bg-slate-900 text-white">
               <tr>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Email
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Plan
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Status
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Creada
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black text-right">
-                  Acciones
-                </th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Email</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Plan</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Status</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Creada</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+            <tbody className="divide-y-2 divide-slate-900">
               {invitesLoading ? (
                 <tr>
-                  <td className="p-4 text-slate-500" colSpan={5}>
+                  <td className="p-6 text-center font-black text-slate-500 uppercase tracking-widest text-sm" colSpan={5}>
                     Cargando...
                   </td>
                 </tr>
               ) : filteredInvites.length === 0 ? (
                 <tr>
-                  <td className="p-4 text-slate-500" colSpan={5}>
-                    Sin resultados
+                  <td colSpan={5}>
+                    <EmptyState title="Sin invitaciones" description="No hay invitaciones que coincidan." />
                   </td>
                 </tr>
               ) : (
-                filteredInvites.map((i) =>
-                  (() => {
-                    const inviteStatus = String(i.status || "").toLowerCase();
-                    const canActivate = inviteStatus !== "active";
-                    const canDeactivate = inviteStatus !== "inactive";
+                filteredInvites.map((i) => {
+                  const inviteStatus = String(i.status || "").toLowerCase();
+                  const canActivate = inviteStatus !== "active";
+                  const canDeactivate = inviteStatus !== "inactive";
 
-                    return (
-                      <tr
-                        key={i.id}
-                        className="hover:bg-slate-100 dark:hover:bg-white/[0.02]"
-                      >
-                        <td className="p-4 font-semibold text-slate-900 dark:text-white">
-                          {i.email}
-                        </td>
-                        <td className="p-4 text-slate-600 dark:text-slate-300 font-mono text-sm">
+                  return (
+                    <tr key={i.id} className="hover:bg-yellow-400/10 transition-colors">
+                      <td className="p-4 font-black text-slate-900 text-sm">{i.email}</td>
+                      <td className="p-4">
+                        <span className="bg-cyan-400 border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-[2px_2px_0_0_#0f172a]">
                           {i.plan_type}
-                        </td>
-                        <td className="p-4">
-                          <span className="px-3 py-1 rounded-full text-xs font-black border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5">
-                            {i.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-slate-400 text-sm">
-                          {i.created_at
-                            ? new Date(i.created_at).toLocaleString()
-                            : "—"}
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              disabled={!canActivate}
-                              className="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
-                              onClick={() => setInviteStatus(i.id, "active")}
-                              type="button"
-                              title="Activar"
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-                            <button
-                              disabled={!canDeactivate}
-                              className="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
-                              onClick={() => setInviteStatus(i.id, "inactive")}
-                              type="button"
-                              title="Desactivar"
-                            >
-                              <Ban size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })(),
-                )
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-0.5 border-2 border-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-[2px_2px_0_0_#0f172a] ${
+                          inviteStatus === "active" ? "bg-yellow-400" :
+                          inviteStatus === "pending" ? "bg-orange-300" : "bg-slate-200"
+                        }`}>
+                          {i.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-xs font-black text-slate-500 uppercase">
+                        {i.created_at ? new Date(i.created_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            disabled={!canActivate}
+                            className="p-2 bg-yellow-400 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-30 disabled:cursor-not-allowed text-slate-900"
+                            onClick={() => setInviteStatus(i.id, "active")}
+                            type="button"
+                            title="Activar"
+                          >
+                            <CheckCircle size={14} strokeWidth={3} />
+                          </button>
+                          <button
+                            disabled={!canDeactivate}
+                            className="p-2 bg-rose-400 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-30 disabled:cursor-not-allowed text-slate-900"
+                            onClick={() => setInviteStatus(i.id, "inactive")}
+                            type="button"
+                            title="Desactivar"
+                          >
+                            <Ban size={14} strokeWidth={3} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* SECCIÓN SUSCRIPCIONES (Lógica refactorizada) */}
-      <section className="bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-8 transition-colors duration-500">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      {/* SUBSCRIPTIONS SECTION */}
+      <section className="bg-white border-4 border-slate-900 shadow-[8px_8px_0_0_#0f172a] p-6 md:p-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 border-b-4 border-slate-900 pb-4">
           <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
               Suscripciones
             </h2>
-            <p className="text-sm text-slate-500">
-              Vista consolidada: Usuarios, Planes y Negocios.
+            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mt-1">
+              Vista consolidada: Usuarios, Planes y Negocios
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={fetchSubscriptions}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 flex items-center gap-2 transition-colors"
-              type="button"
-            >
-              <RefreshCw size={16} /> Refrescar
-            </button>
-          </div>
+          <button
+            onClick={fetchSubscriptions}
+            className="px-4 py-2 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:-translate-y-0.5 hover:-translate-x-0.5 hover:shadow-[4px_4px_0_0_#0f172a] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 font-black text-xs uppercase tracking-widest text-slate-900"
+            type="button"
+          >
+            <RefreshCw size={14} strokeWidth={3} /> Refrescar
+          </button>
         </div>
 
-        <div className="overflow-x-auto border border-slate-300 dark:border-white/10 rounded-2xl">
+        <div className="overflow-x-auto border-4 border-slate-900">
           <table className="w-full text-left">
-            <thead className="bg-slate-100 dark:bg-white/[0.03]">
+            <thead className="bg-slate-900 text-white">
               <tr>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Organización / Dueño
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Plan
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Status
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black">
-                  Válida hasta
-                </th>
-                <th className="p-4 text-xs uppercase tracking-widest text-slate-500 font-black text-right">
-                  Acciones
-                </th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Organización / Dueño</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Plan</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Status</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black">Válida hasta</th>
+                <th className="p-4 text-[10px] uppercase tracking-widest font-black text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+            <tbody className="divide-y-2 divide-slate-900">
               {subsLoading ? (
                 <tr>
-                  <td className="p-4 text-slate-500" colSpan={5}>
+                  <td className="p-6 text-center font-black text-slate-500 uppercase tracking-widest text-sm" colSpan={5}>
                     Cargando...
                   </td>
                 </tr>
               ) : subs.length === 0 ? (
                 <tr>
-                  <td className="p-4 text-slate-500" colSpan={5}>
-                    Sin suscripciones
+                  <td colSpan={5}>
+                    <EmptyState title="Sin suscripciones" description="Aún no hay suscripciones registradas." />
                   </td>
                 </tr>
               ) : (
                 subs.map((s) => (
-                  <tr
-                    key={s.id}
-                    className="hover:bg-slate-100 dark:hover:bg-white/[0.02]"
-                  >
+                  <tr key={s.id} className="hover:bg-yellow-400/10 transition-colors">
                     <td className="p-4">
-                      <div className="font-semibold text-slate-900 dark:text-white">
-                        {s.org_name}
-                      </div>
-                      {/* Mostramos el mail del dueño si existe */}
+                      <div className="font-black text-slate-900 text-sm">{s.org_name}</div>
                       {s.user_email && (
-                        <div className="text-xs text-slate-500">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
                           {s.user_email}
                         </div>
                       )}
                     </td>
-                    <td className="p-4 text-slate-600 dark:text-slate-300 font-mono text-sm uppercase">
-                      {s.plan_type}
+                    <td className="p-4">
+                      <span className="bg-cyan-400 border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-[2px_2px_0_0_#0f172a]">
+                        {s.plan_type}
+                      </span>
                     </td>
                     <td className="p-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-black border ${
-                          s.status === "active"
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                            : s.status === "past_due"
-                              ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                              : "bg-slate-100 dark:bg-white/5 border-slate-300 dark:border-white/10"
-                        }`}
-                      >
+                      <span className={`px-2 py-0.5 border-2 border-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-[2px_2px_0_0_#0f172a] ${
+                        s.status === "active" ? "bg-yellow-400" :
+                        s.status === "past_due" ? "bg-rose-400" : "bg-slate-200"
+                      }`}>
                         {s.status}
                       </span>
                     </td>
-                    <td className="p-4 text-slate-400 text-sm">
-                      {s.valid_until
-                        ? new Date(s.valid_until).toLocaleDateString()
-                        : "—"}
+                    <td className="p-4 text-xs font-black text-slate-500 uppercase">
+                      {s.valid_until ? new Date(s.valid_until).toLocaleDateString() : "—"}
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button
-                          className="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition"
-                          onClick={() =>
-                            handleRegisterPayment(s.id, s.valid_until)
-                          }
+                          className="p-2 bg-yellow-400 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all text-slate-900"
+                          onClick={() => handleRegisterPayment(s.id, s.valid_until)}
                           type="button"
                           title="Registrar pago (+30d) y activar"
                         >
-                          <CreditCard size={16} />
+                          <CreditCard size={14} strokeWidth={3} />
                         </button>
                         <button
-                          className="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition"
+                          className="p-2 bg-rose-400 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all text-slate-900"
                           onClick={() => handleSetStatus(s.id, "past_due")}
                           type="button"
                           title="Marcar past_due"
                         >
-                          <Ban size={16} />
+                          <Ban size={14} strokeWidth={3} />
                         </button>
                         <button
-                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition border border-slate-300 dark:border-white/10"
+                          className="p-2 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all text-slate-900"
                           onClick={() => handleSetStatus(s.id, "trialing")}
                           type="button"
                           title="Volver a trialing"
                         >
-                          <CheckCircle size={16} />
+                          <CheckCircle size={14} strokeWidth={3} />
                         </button>
                       </div>
                     </td>

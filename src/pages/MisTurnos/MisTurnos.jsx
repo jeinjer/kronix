@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import EmptyState from "@/components/UI/EmptyState";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -20,6 +21,7 @@ import {
 } from "../../supabase/services/appointments";
 import { getOrganizationStaff } from "../../supabase/services/staff";
 import AppointmentModal from "../../components/Organization/AppointmentModal";
+
 export default function MisTurnos() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
@@ -32,6 +34,7 @@ export default function MisTurnos() {
   const [appToEdit, setAppToEdit] = useState(null);
   const [staffOptions, setStaffOptions] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
+
   useEffect(() => {
     async function fetchApps() {
       if (!user?.email) return;
@@ -42,6 +45,7 @@ export default function MisTurnos() {
     }
     fetchApps();
   }, [user?.email]);
+
   const confirmCancel = async () => {
     if (!appToCancel) return;
     setCancelingId(appToCancel.id);
@@ -62,6 +66,7 @@ export default function MisTurnos() {
     setCancelModalOpen(false);
     setAppToCancel(null);
   };
+
   const handleEditClick = async (app) => {
     setAppToEdit(app);
     setLoadingStaff(true);
@@ -70,11 +75,13 @@ export default function MisTurnos() {
     setLoadingStaff(false);
     setEditModalOpen(true);
   };
+
   const handleEditSuccess = (updatedApp) => {
     setAppointments((prev) =>
       prev.map((a) => (a.id === updatedApp.id ? { ...a, ...updatedApp } : a)),
     );
   };
+
   const now = new Date();
   const upcomingAppointments = appointments.filter((app) => {
     const appDate = new Date(app.start_time);
@@ -84,6 +91,7 @@ export default function MisTurnos() {
     const appDate = new Date(app.start_time);
     return appDate < now || app.status === "canceled";
   });
+
   const renderAppointment = (app, idx, isPastSection) => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const dateStr = formatAppointmentDate(app.start_time, tz);
@@ -111,15 +119,11 @@ export default function MisTurnos() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: idx * 0.1 }}
-        className={`border rounded-[1.5rem] p-6 transition-all ${isUpcoming && !isPastSection ? "border-cyan-500/30 bg-cyan-50/50 shadow-sm" : "border-slate-200 opacity-70"} ${isCancelled && "opacity-50 grayscale"}`}
+        className={`border-4 rounded-none p-6 transition-all ${isUpcoming && !isPastSection ? "border-slate-900 bg-cyan-400 shadow-[6px_6px_0_0_#0f172a]" : "border-slate-300 shadow-none bg-slate-50"} ${isCancelled && "opacity-75 grayscale bg-slate-100"}`}
       >
-        {" "}
         <div className="flex flex-col md:flex-row justify-between gap-6">
-          {" "}
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-            {" "}
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-white focus:outline-none shrink-0 bg-slate-100 flex items-center justify-center">
-              {" "}
+          <div className="flex flex-col md:flex-row gap-5 items-start md:items-center w-full">
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-none overflow-hidden border-4 border-slate-900 focus:outline-none shrink-0 bg-white flex items-center justify-center shadow-[4px_4px_0_0_#0f172a] -rotate-3">
               {app.organizations?.logo_url ? (
                 <img
                   src={app.organizations.logo_url}
@@ -127,236 +131,187 @@ export default function MisTurnos() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Sparkles className="text-slate-400" size={24} />
-              )}{" "}
-            </div>{" "}
+                <Sparkles className="text-slate-900" size={32} strokeWidth={2} />
+              )}
+            </div>
             <div className="flex-1">
-              {" "}
               {isCancelled && (
-                <div className="mb-2">
-                  {" "}
-                  <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full text-xs font-bold">
+                <div className="mb-3">
+                  <span className="px-3 py-1 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] text-slate-900 uppercase tracking-widest text-[10px] font-black">
                     Cancelado
-                  </span>{" "}
+                  </span>
                 </div>
-              )}{" "}
-              <h4 className="flex items-center gap-2 text-xl font-bold mb-1">
-                {" "}
-                <Scissors size={18} className="text-cyan-500 shrink-0" />{" "}
-                {app.organizations?.name || "Negocio"}{" "}
-              </h4>{" "}
-              <div className="flex items-center gap-1 text-xs text-slate-400 mb-3">
-                {" "}
-                <MapPin size={12} className="text-slate-400 shrink-0" />{" "}
-                {rawAddress ? `${rawAddress},` : ""}
-                {app.organizations?.cities?.name || "Local"}{" "}
-              </div>{" "}
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600 mb-3">
-                {" "}
-                <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                  <Calendar size={14} /> {fullDateStr}
-                </span>{" "}
-                <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                  <Clock size={14} /> {timeStr}
-                </span>{" "}
-              </div>{" "}
+              )}
+              <h4 className="flex items-center gap-3 text-2xl font-black mb-2 uppercase tracking-tighter text-slate-900 truncate">
+                <div className="bg-white border-2 border-slate-900 p-1 shadow-[2px_2px_0_0_#0f172a] rotate-3 shrink-0"><Scissors size={20} strokeWidth={3} className="text-slate-900" /></div>
+                {app.organizations?.name || "Negocio"}
+              </h4>
+              <div className="flex items-center gap-2 text-xs text-slate-800 font-bold uppercase tracking-widest mb-4 truncate bg-white/50 border-2 border-slate-900 px-3 py-1.5 shadow-[2px_2px_0_0_#0f172a] w-fit">
+                <MapPin size={14} className="text-slate-900 shrink-0" strokeWidth={3} />
+                {rawAddress ? `${rawAddress}, ` : ""}
+                {app.organizations?.cities?.name || "Local"}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-widest text-slate-900 mb-4">
+                <span className="flex items-center gap-2 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] px-3 py-2">
+                  <Calendar size={16} strokeWidth={3} /> {fullDateStr}
+                </span>
+                <span className="flex items-center gap-2 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a] px-3 py-2">
+                  <Clock size={16} strokeWidth={3} /> {timeStr}
+                </span>
+              </div>
               {!isPastSection && (
                 <a
                   href={mapLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-600 hover:text-cyan-700 transition-colors bg-cyan-50 px-3 py-1.5 rounded-lg w-fit"
+                  className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-900 hover:text-white transition-colors bg-yellow-400 border-2 border-slate-900 shadow-[4px_4px_0_0_#0f172a] px-4 py-2 hover:bg-slate-900 hover:translate-x-1 hover:translate-y-1 hover:shadow-none w-fit"
                 >
-                  {" "}
-                  <MapPin size={12} /> Abrir en Google Maps{" "}
+                  <MapPin size={16} strokeWidth={3} /> Abrir Google Maps
                 </a>
-              )}{" "}
-            </div>{" "}
-          </div>{" "}
+              )}
+            </div>
+          </div>
           {!isPastSection && isUpcoming && (
-            <div className="flex flex-row md:flex-col gap-2 shrink-0 mt-4 md:mt-0">
-              {" "}
+            <div className="flex flex-row md:flex-col gap-3 shrink-0 mt-6 md:mt-0 w-full md:w-auto">
               <button
                 onClick={() => handleEditClick(app)}
                 disabled={loadingStaff && appToEdit?.id === app.id}
-                className="w-full px-6 py-3 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="w-full px-6 py-4 bg-white border-4 border-slate-900 text-slate-900 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#0f172a] active:translate-y-1 active:translate-x-1 active:shadow-none shadow-[4px_4px_0_0_#0f172a] rounded-none font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
-                {" "}
                 {loadingStaff && appToEdit?.id === app.id ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 size={18} strokeWidth={3} className="animate-spin" />
                 ) : (
-                  <Pencil size={16} />
-                )}{" "}
-                Editar{" "}
-              </button>{" "}
+                  <Pencil size={18} strokeWidth={3} />
+                )}
+                Reprogramar
+              </button>
               <button
                 onClick={() => {
                   setAppToCancel(app);
                   setCancelModalOpen(true);
                 }}
-                className="w-full px-6 py-3 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full px-6 py-4 bg-white border-4 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#0f172a] active:translate-y-1 active:translate-x-1 active:shadow-none shadow-[4px_4px_0_0_#0f172a] rounded-none font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                {" "}
-                <XCircle size={16} /> Cancelar{" "}
-              </button>{" "}
+                <XCircle size={18} strokeWidth={3} /> Anular
+              </button>
             </div>
-          )}{" "}
-        </div>{" "}
+          )}
+        </div>
       </motion.div>
     );
   };
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 md:py-20 animate-in fade-in duration-500">
-      {" "}
-      <div className="bg-white border border-slate-200 rounded-[2rem] p-8 md:p-12 shadow-sm">
-        {" "}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-          {" "}
-          <h3 className="text-3xl font-black flex items-center gap-3">
-            {" "}
-            <Calendar className="text-cyan-500" size={32} /> Mis Turnos{" "}
-          </h3>{" "}
-          <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
-            {" "}
+    <div className="max-w-[1200px] mx-auto px-4 py-12 md:py-20 font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif]">
+      <div className="bg-white border-4 border-slate-900 rounded-none p-6 md:p-12 shadow-[12px_12px_0_0_#0f172a] relative">
+        <div className="absolute -top-4 -left-4 bg-cyan-400 border-4 border-slate-900 px-4 py-2 shadow-[6px_6px_0_0_#0f172a] -rotate-3">
+          <span className="font-black text-slate-900 uppercase tracking-widest text-xs">Ajustes</span>
+        </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pt-4">
+          <h3 className="text-4xl font-black flex items-center gap-4 text-slate-900 uppercase tracking-tighter">
+            <div className="bg-yellow-400 border-4 border-slate-900 p-2 shadow-[4px_4px_0_0_#0f172a] rotate-3"><Calendar className="text-slate-900" size={32} strokeWidth={3} /></div> MIS TURNOS
+          </h3>
+          <div className="flex bg-slate-900 p-1.5 w-fit border-4 border-slate-900 shadow-[6px_6px_0_0_#0f172a]">
             <button
               onClick={() => setActiveTab("upcoming")}
-              className={`px-4 py-2 font-bold text-sm rounded-lg transition-all ${activeTab === "upcoming" ? "bg-white text-cyan-600 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-6 py-3 font-black text-xs uppercase tracking-widest transition-all ${activeTab === "upcoming" ? "bg-cyan-400 text-slate-900 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a]" : "text-white border-2 border-transparent hover:bg-slate-800 cursor-pointer"}`}
             >
-              {" "}
-              Próximos{" "}
-            </button>{" "}
+              PRÓXIMOS
+            </button>
             <button
               onClick={() => setActiveTab("past")}
-              className={`px-4 py-2 font-bold text-sm rounded-lg transition-all ${activeTab === "past" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-6 py-3 font-black text-xs uppercase tracking-widest transition-all ${activeTab === "past" ? "bg-cyan-400 text-slate-900 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a]" : "text-white border-2 border-transparent hover:bg-slate-800 cursor-pointer"}`}
             >
-              {" "}
-              Anteriores{" "}
-            </button>{" "}
-          </div>{" "}
-        </div>{" "}
-        <div className="space-y-10">
-          {" "}
+              HISTORIAL
+            </button>
+          </div>
+        </div>
+        <div className="space-y-8">
           {loading ? (
-            <div className="text-center py-12 text-slate-500 flex flex-col items-center justify-center gap-2 border border-slate-200 rounded-[1.5rem]">
-              {" "}
-              <Loader2 size={24} className="animate-spin text-cyan-500" />{" "}
-              <p>Obteniendo tus turnos...</p>{" "}
+            <div className="text-center py-20 bg-slate-50 border-4 border-slate-900 flex flex-col items-center justify-center gap-4 shadow-inner">
+              <Loader2 size={48} strokeWidth={3} className="animate-spin text-slate-900" />
+              <p className="font-black text-slate-900 uppercase tracking-widest text-sm">Cargando turnos...</p>
             </div>
           ) : (
             <>
-              {" "}
               {!loading && appointments.length === 0 && (
-                <div className="text-center py-12 text-slate-500 border border-slate-200 rounded-[1.5rem]">
-                  {" "}
-                  <Calendar
-                    size={48}
-                    className="mx-auto opacity-20 mb-4"
-                  />{" "}
-                  <p>No tienes turnos registrados.</p>{" "}
-                </div>
-              )}{" "}
-              {activeTab === "upcoming" &&
-                (upcomingAppointments.length > 0 ? (
-                  <div className="space-y-4">
-                    {" "}
+                <EmptyState title="No hay turnos registrados" description="Cuando reserves un turno, aparecerá acá." />
+              )}
+              {activeTab === "upcoming" && (
+                upcomingAppointments.length > 0 ? (
+                  <div className="space-y-6">
                     {upcomingAppointments.map((app, idx) =>
                       renderAppointment(app, idx, false),
-                    )}{" "}
+                    )}
                   </div>
-                ) : (
-                  appointments.length > 0 && (
-                    <div className="text-center py-12 text-slate-500 border border-slate-200 rounded-[1.5rem]">
-                      {" "}
-                      <Calendar
-                        size={48}
-                        className="mx-auto opacity-20 mb-4"
-                      />{" "}
-                      <p>No tenés turnos próximos.</p>{" "}
-                    </div>
-                  )
-                ))}{" "}
-              {activeTab === "past" &&
-                (pastAppointments.length > 0 ? (
-                  <div className="space-y-4">
-                    {" "}
+                ) : appointments.length > 0 && (
+                  <EmptyState title="Sin reservas futuras" description="No tenés turnos próximos agendados." />
+                )
+              )}
+              {activeTab === "past" && (
+                pastAppointments.length > 0 ? (
+                  <div className="space-y-6">
                     {pastAppointments.map((app, idx) =>
                       renderAppointment(app, idx, true),
-                    )}{" "}
+                    )}
                   </div>
-                ) : (
-                  appointments.length > 0 && (
-                    <div className="text-center py-12 text-slate-500 border border-slate-200 rounded-[1.5rem]">
-                      {" "}
-                      <Calendar
-                        size={48}
-                        className="mx-auto opacity-20 mb-4"
-                      />{" "}
-                      <p>No tenés turnos anteriores.</p>{" "}
-                    </div>
-                  )
-                ))}{" "}
+                ) : appointments.length > 0 && (
+                  <EmptyState title="Historial vacío" description="Todavía no tenés turnos en el historial." />
+                )
+              )}
             </>
-          )}{" "}
-        </div>{" "}
-      </div>{" "}
-      {/* Cancel Confirmation Modal */}{" "}
+          )}
+        </div>
+      </div>
+
+      {/* Cancel Confirmation Modal */}
       {cancelModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          {" "}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif]">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
             onClick={() => setCancelModalOpen(false)}
-          />{" "}
-          <div className="relative w-full max-w-sm rounded-[2rem] border border-slate-200 bg-white p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-300 overflow-hidden text-center">
-            {" "}
-            <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-5">
-              {" "}
-              <XCircle size={32} />{" "}
-            </div>{" "}
-            <h4 className="text-xl font-black tracking-tight text-slate-900 mb-2">
-              {" "}
-              ¿Cancelar Turno?{" "}
-            </h4>{" "}
-            <p className="text-sm text-slate-500 mb-8 leading-relaxed">
-              {" "}
-              Estás a punto de cancelar tu turno en{" "}
-              <strong>{appToCancel?.organizations?.name}</strong>. Esta acción
-              no se puede deshacer.{" "}
-            </p>{" "}
-            <div className="flex flex-col gap-3">
-              {" "}
+          />
+          <div className="relative w-full max-w-md border-4 border-slate-900 bg-white p-10 shadow-[16px_16px_0_0_#0f172a] text-center overflow-visible">
+            <div className="w-20 h-20 bg-red-500 border-4 border-slate-900 shadow-[6px_6px_0_0_#0f172a] text-slate-900 font-black rounded-none flex items-center justify-center mx-auto mb-8 absolute -top-10 left-1/2 -translate-x-1/2 rotate-6">
+              <XCircle size={40} strokeWidth={3} />
+            </div>
+            <h4 className="text-3xl font-black uppercase tracking-tighter text-slate-900 mb-4 pt-8">
+              ¿Eliminar turno?
+            </h4>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-600 mb-10 leading-relaxed">
+              ATENCIÓN: Se cancelará tu reserva en <strong className="text-slate-900 bg-cyan-400 px-1 border-2 border-slate-900">{appToCancel?.organizations?.name}</strong>. Esto es irreversible.
+            </p>
+            <div className="flex flex-col gap-4">
               <button
                 type="button"
                 onClick={confirmCancel}
                 disabled={cancelingId === appToCancel?.id}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 py-5 border-4 border-slate-900 font-black uppercase tracking-widest text-sm bg-red-500 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#0f172a] active:translate-y-1 active:translate-x-1 active:shadow-none shadow-[4px_4px_0_0_#0f172a] text-slate-900 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {" "}
                 {cancelingId === appToCancel?.id ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : null}{" "}
-                Sí, cancelar turno{" "}
-              </button>{" "}
+                  <Loader2 size={20} strokeWidth={3} className="animate-spin" />
+                ) : null}
+                Aniquilar Reserva
+              </button>
               <button
                 type="button"
                 onClick={() => setCancelModalOpen(false)}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors"
+                className="w-full flex items-center justify-center gap-3 py-5 border-4 border-slate-900 font-black uppercase tracking-widest text-sm bg-white hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#0f172a] active:translate-y-1 active:translate-x-1 active:shadow-none shadow-[4px_4px_0_0_#0f172a] text-slate-900 transition-all cursor-pointer"
               >
-                {" "}
-                No, mantener mi lugar{" "}
-              </button>{" "}
-            </div>{" "}
-          </div>{" "}
+                Mala Mía, Volver
+              </button>
+            </div>
+          </div>
         </div>
-      ) : null}{" "}
-      {/* Edit Appointment Modal */}{" "}
+      ) : null}
+
+      {/* Edit Appointment Modal */}
       <AppointmentModal
         isOpen={editModalOpen}
         appointment={appToEdit}
         staffOptions={staffOptions}
         onClose={() => setEditModalOpen(false)}
         onSuccess={handleEditSuccess}
-      />{" "}
+      />
     </div>
   );
 }

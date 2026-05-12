@@ -2,15 +2,34 @@ import { supabase } from '@/supabase/supabaseClient';
 
 export const getScheduleTemplates = async () => {
   try {
-    const query = supabase
+    const { data: templates, error: templatesError } = await supabase
       .from('schedule_templates')
       .select('id, name')
       .order('name', { ascending: true });
 
-    const { data, error } = await query;
-    if (error) throw error;
+    if (templatesError) throw templatesError;
 
-    return { data: data || [], error: null };
+    if (!templates?.length) return { data: [], error: null };
+
+    const { data: items, error: itemsError } = await supabase
+      .from('schedule_template_items')
+      .select('template_id, day_of_week, start_time, end_time')
+      .in('template_id', templates.map((t) => t.id));
+
+    if (itemsError) throw itemsError;
+
+    const itemsByTemplate = (items || []).reduce((acc, item) => {
+      if (!acc[item.template_id]) acc[item.template_id] = [];
+      acc[item.template_id].push(item);
+      return acc;
+    }, {});
+
+    const merged = templates.map((t) => ({
+      ...t,
+      schedule_template_items: itemsByTemplate[t.id] || [],
+    }));
+
+    return { data: merged, error: null };
   } catch (error) {
     console.error('Error en getScheduleTemplates:', error);
     return { data: [], error };

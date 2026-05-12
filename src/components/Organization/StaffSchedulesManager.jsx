@@ -342,21 +342,21 @@ export default function StaffSchedulesManager({
   };
 
   return (
-    <section className="mt-8 bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
-      <CollapsiblePanel
-        title="Calendario por Empleado"
-        subtitle="Define horarios semanales para cada integrante"
-        isOpen={schedulesOpen}
-        onToggle={() => setSchedulesOpen((prev) => !prev)}
-      >
-        <>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-3 mb-5 mt-5">
-            {hasStaff ? (
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+    <div className="space-y-8 font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif] pb-10">
+      <div className="bg-white border-4 border-slate-900 shadow-[8px_8px_0_0_#0f172a] p-6 relative">
+        <div className="absolute -top-4 -left-4 bg-cyan-400 border-2 border-slate-900 px-4 py-2 font-black uppercase tracking-widest text-sm shadow-[4px_4px_0_0_#0f172a] -rotate-2">
+          Horarios del Equipo
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-3 mb-8 mt-6 pb-6 border-b-4 border-slate-900">
+          {hasStaff ? (
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-center w-full md:w-auto">
+              <label className="flex items-center gap-2 font-black uppercase text-xs tracking-widest text-slate-900 bg-yellow-400 px-3 py-2 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a]">
+                Empleado:
                 <select
                   value={selectedStaffId}
                   onChange={(event) => setSelectedStaffId(event.target.value)}
-                  className="bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="bg-white border-2 border-slate-900 px-2 py-1 text-slate-900 focus:outline-none focus:ring-0 ml-2 cursor-pointer uppercase text-xs font-bold"
                 >
                   {staffList.map((staff) => (
                     <option key={staff.id} value={staff.id}>
@@ -364,7 +364,9 @@ export default function StaffSchedulesManager({
                     </option>
                   ))}
                 </select>
+              </label>
 
+              <div className="w-full sm:w-auto">
                 <ScheduleTemplateSelector
                   staffId={selectedStaffId}
                   onSuccess={async () => {
@@ -373,332 +375,232 @@ export default function StaffSchedulesManager({
                   }}
                 />
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
+        </div>
 
-          {hasPendingBlock ? (
-            <div className="mb-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                Tienes un bloque horario nuevo pendiente. Guardalo para
-                confirmarlo.
+        {hasPendingBlock ? (
+          <div className="mb-8 border-4 border-slate-900 bg-yellow-400 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-[4px_4px_0_0_#0f172a] animate-pulse">
+            <p className="text-sm font-black text-slate-900 uppercase tracking-widest">
+              ¡Tienes un bloque pendiente de guardar!
+            </p>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || hasValidationErrors}
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-900 text-xs font-black uppercase tracking-widest bg-cyan-400 hover:bg-cyan-300 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-60"
+            >
+              {saving ? (
+                <Loader2 size={16} className="animate-spin" strokeWidth={3} />
+              ) : (
+                <Save size={16} strokeWidth={3} />
+              )}
+              Confirmar bloque nuevo
+            </button>
+          </div>
+        ) : null}
+
+        {loadingStaff || loadingSchedule ? (
+          <div className="py-20 flex flex-col items-center justify-center gap-4 border-4 border-dashed border-slate-300 bg-slate-50">
+            <Loader2 size={32} className="animate-spin text-slate-900" strokeWidth={3} />
+            <span className="text-sm font-black uppercase tracking-widest text-slate-900">
+              Cargando cuadrícula...
+            </span>
+          </div>
+        ) : !hasStaff ? (
+          <div className="border-4 border-dashed border-slate-900 bg-slate-50 p-12 text-center">
+            <p className="font-black uppercase tracking-widest text-slate-900">
+              No hay empleados disponibles.
+            </p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">
+              Agrega uno primero desde la sección Empleados.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              {DAYS.map((day) => {
+                const blocks = blocksByDay[day.value] || [];
+                return (
+                  <article
+                    key={day.value}
+                    className="border-4 border-slate-900 bg-slate-50 p-5 shadow-[4px_4px_0_0_#0f172a]"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b-2 border-slate-900">
+                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+                        {day.label}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => handleAddBlock(day.value)}
+                        disabled={hasPendingBlock}
+                        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-2 border-2 border-slate-900 bg-white hover:bg-slate-100 text-slate-900 transition-all shadow-[2px_2px_0_0_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none disabled:opacity-50"
+                      >
+                        <Plus size={14} strokeWidth={3} />
+                        Añadir Turno
+                      </button>
+                    </div>
+
+                    {blocks.length === 0 ? (
+                      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 p-4 bg-white border-2 border-slate-200">
+                        <CalendarClock size={16} strokeWidth={3} />
+                        Día libre - Sin horarios
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {blocks.map((block, idx) => (
+                          <div
+                            key={block.id}
+                            className="flex flex-col lg:flex-row lg:items-center gap-4 p-4 bg-white border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a]"
+                          >
+                            <span className="text-sm font-black uppercase tracking-widest bg-slate-900 text-white px-3 py-1 w-fit">
+                              Bloque {idx + 1}
+                            </span>
+                            
+                            <div className="flex-1 flex flex-wrap gap-4 items-center">
+                              <div className="flex items-center gap-2 bg-slate-50 border-2 border-slate-900 p-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Desde</span>
+                                <select
+                                  value={splitTimeParts(block.start_time).hour}
+                                  onChange={(e) => {
+                                    const { minute } = splitTimeParts(block.start_time);
+                                    handleChangeBlock(day.value, block.id, "start_time", buildTimeValue(e.target.value, minute));
+                                  }}
+                                  className="bg-white border-2 border-slate-900 px-2 py-1 text-sm font-bold focus:outline-none"
+                                >
+                                  {HOURS.map((hour) => <option key={`start-h-${block.id}-${hour}`} value={hour}>{hour}</option>)}
+                                </select>
+                                <span className="font-black text-slate-900">:</span>
+                                <select
+                                  value={splitTimeParts(block.start_time).minute}
+                                  onChange={(e) => {
+                                    const { hour } = splitTimeParts(block.start_time);
+                                    handleChangeBlock(day.value, block.id, "start_time", buildTimeValue(hour, e.target.value));
+                                  }}
+                                  className="bg-white border-2 border-slate-900 px-2 py-1 text-sm font-bold focus:outline-none"
+                                >
+                                  {MINUTE_OPTIONS.map((minute) => <option key={`start-m-${block.id}-${minute}`} value={minute}>{minute}</option>)}
+                                </select>
+                              </div>
+
+                              <div className="flex items-center gap-2 bg-slate-50 border-2 border-slate-900 p-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Hasta</span>
+                                <select
+                                  value={splitTimeParts(block.end_time).hour}
+                                  onChange={(e) => {
+                                    const { minute } = splitTimeParts(block.end_time);
+                                    handleChangeBlock(day.value, block.id, "end_time", buildTimeValue(e.target.value, minute));
+                                  }}
+                                  className="bg-white border-2 border-slate-900 px-2 py-1 text-sm font-bold focus:outline-none"
+                                >
+                                  {HOURS.map((hour) => <option key={`end-h-${block.id}-${hour}`} value={hour}>{hour}</option>)}
+                                </select>
+                                <span className="font-black text-slate-900">:</span>
+                                <select
+                                  value={splitTimeParts(block.end_time).minute}
+                                  onChange={(e) => {
+                                    const { hour } = splitTimeParts(block.end_time);
+                                    handleChangeBlock(day.value, block.id, "end_time", buildTimeValue(hour, e.target.value));
+                                  }}
+                                  className="bg-white border-2 border-slate-900 px-2 py-1 text-sm font-bold focus:outline-none"
+                                >
+                                  {MINUTE_OPTIONS.map((minute) => <option key={`end-m-${block.id}-${minute}`} value={minute}>{minute}</option>)}
+                                </select>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBlock(day.value, block.id)}
+                              className="inline-flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-2 border-2 border-slate-900 bg-rose-400 hover:bg-rose-500 text-slate-900 transition-all shadow-[2px_2px_0_0_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none whitespace-nowrap"
+                            >
+                              <Trash2 size={14} strokeWidth={3} />
+                              Borrar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {dayValidationMessages[day.value] ? (
+                      <p className="mt-4 p-3 bg-rose-400 border-2 border-slate-900 text-xs font-black uppercase tracking-widest text-slate-900 shadow-[2px_2px_0_0_#0f172a]">
+                        ⚠️ {dayValidationMessages[day.value]}
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+
+            {hasPendingBlock ? (
+              <p className="p-4 bg-yellow-400 border-4 border-slate-900 text-sm font-black uppercase tracking-widest text-slate-900 text-center shadow-[4px_4px_0_0_#0f172a]">
+                GUARDA TUS CAMBIOS ANTES DE CONTINUAR.
               </p>
+            ) : null}
+
+            <div className="pt-8 border-t-4 border-slate-900 flex flex-col sm:flex-row justify-end gap-4">
+              {hasAnyBlocks ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearAllOpen(true)}
+                  disabled={saving || clearingAll}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 border-4 border-slate-900 bg-rose-400 hover:bg-rose-500 text-slate-900 text-xs font-black uppercase tracking-widest transition-all shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none disabled:opacity-50"
+                >
+                  {clearingAll ? (
+                    <Loader2 size={18} className="animate-spin" strokeWidth={3} />
+                  ) : (
+                    <Trash2 size={18} strokeWidth={3} />
+                  )}
+                  Limpiar Semana
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || hasValidationErrors}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={
+                  saving ||
+                  clearingAll ||
+                  hasValidationErrors ||
+                  !hasUnsavedChanges
+                }
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 border-4 border-slate-900 bg-cyan-400 hover:bg-cyan-300 text-slate-900 text-xs font-black uppercase tracking-widest transition-all shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:bg-slate-200"
               >
                 {saving ? (
-                  <Loader2 size={13} className="animate-spin" />
+                  <Loader2 size={18} className="animate-spin" strokeWidth={3} />
                 ) : (
-                  <Save size={13} />
+                  <Save size={18} strokeWidth={3} />
                 )}
-                Guardar bloque horario nuevo
+                {saving ? "Procesando..." : "Guardar Cambios"}
               </button>
             </div>
-          ) : null}
-
-          {loadingStaff || loadingSchedule ? (
-            <div className="py-10 flex items-center justify-center gap-2 text-slate-500">
-              <Loader2 size={18} className="animate-spin" />
-              <span className="text-sm font-semibold">
-                Cargando calendario laboral...
-              </span>
-            </div>
-          ) : !hasStaff ? (
-            <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 py-8 px-4 text-center text-sm text-slate-600 dark:text-slate-400">
-              Primero crea empleados activos para poder asignarles horarios.
-            </div>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {DAYS.map((day) => {
-                  const blocks = blocksByDay[day.value] || [];
-                  return (
-                    <article
-                      key={day.value}
-                      className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-white/[0.02]"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                          {day.label}
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={() => handleAddBlock(day.value)}
-                          disabled={hasPendingBlock}
-                          className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          <Plus size={12} />
-                          Agregar bloque horario
-                        </button>
-                      </div>
-
-                      {blocks.length === 0 ? (
-                        <div className="text-xs text-slate-500 flex items-center gap-2">
-                          <CalendarClock size={13} />
-                          Sin bloque horario asignado
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {blocks.map((block) => (
-                            <div
-                              key={block.id}
-                              className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end"
-                            >
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                Bloque horario
-                              </span>
-                              <div className="space-y-1">
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                                  Inicio
-                                </p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <label className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Hora
-                                    </span>
-                                    <select
-                                      value={
-                                        splitTimeParts(block.start_time).hour
-                                      }
-                                      onChange={(event) => {
-                                        const { minute } = splitTimeParts(
-                                          block.start_time,
-                                        );
-                                        handleChangeBlock(
-                                          day.value,
-                                          block.id,
-                                          "start_time",
-                                          buildTimeValue(
-                                            event.target.value,
-                                            minute,
-                                          ),
-                                        );
-                                      }}
-                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                    >
-                                      {HOURS.map((hour) => (
-                                        <option
-                                          key={`start-hour-${block.id}-${hour}`}
-                                          value={hour}
-                                        >
-                                          {hour}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                  <label className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Min
-                                    </span>
-                                    <select
-                                      value={
-                                        splitTimeParts(block.start_time).minute
-                                      }
-                                      onChange={(event) => {
-                                        const { hour } = splitTimeParts(
-                                          block.start_time,
-                                        );
-                                        handleChangeBlock(
-                                          day.value,
-                                          block.id,
-                                          "start_time",
-                                          buildTimeValue(
-                                            hour,
-                                            event.target.value,
-                                          ),
-                                        );
-                                      }}
-                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                    >
-                                      {MINUTE_OPTIONS.map((minute) => (
-                                        <option
-                                          key={`start-minute-${block.id}-${minute}`}
-                                          value={minute}
-                                        >
-                                          {minute}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
-                                  Fin
-                                </p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <label className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Hora
-                                    </span>
-                                    <select
-                                      value={
-                                        splitTimeParts(block.end_time).hour
-                                      }
-                                      onChange={(event) => {
-                                        const { minute } = splitTimeParts(
-                                          block.end_time,
-                                        );
-                                        handleChangeBlock(
-                                          day.value,
-                                          block.id,
-                                          "end_time",
-                                          buildTimeValue(
-                                            event.target.value,
-                                            minute,
-                                          ),
-                                        );
-                                      }}
-                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                    >
-                                      {HOURS.map((hour) => (
-                                        <option
-                                          key={`end-hour-${block.id}-${hour}`}
-                                          value={hour}
-                                        >
-                                          {hour}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                  <label className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Min
-                                    </span>
-                                    <select
-                                      value={
-                                        splitTimeParts(block.end_time).minute
-                                      }
-                                      onChange={(event) => {
-                                        const { hour } = splitTimeParts(
-                                          block.end_time,
-                                        );
-                                        handleChangeBlock(
-                                          day.value,
-                                          block.id,
-                                          "end_time",
-                                          buildTimeValue(
-                                            hour,
-                                            event.target.value,
-                                          ),
-                                        );
-                                      }}
-                                      className="bg-white dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                    >
-                                      {MINUTE_OPTIONS.map((minute) => (
-                                        <option
-                                          key={`end-minute-${block.id}-${minute}`}
-                                          value={minute}
-                                        >
-                                          {minute}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveBlock(day.value, block.id)
-                                }
-                                className="md:col-span-2 md:self-end inline-flex items-center justify-center gap-1 text-xs font-bold px-3 py-2 rounded-lg bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25 transition-colors"
-                              >
-                                <Trash2 size={12} />
-                                Quitar bloque horario
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {dayValidationMessages[day.value] ? (
-                        <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">
-                          {dayValidationMessages[day.value]}
-                        </p>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-
-              {hasPendingBlock ? (
-                <p className="mt-3 text-xs font-semibold text-amber-600 dark:text-amber-300">
-                  Hay un bloque horario pendiente. Guarda los cambios antes de
-                  agregar otro.
-                </p>
-              ) : null}
-
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                {hasAnyBlocks ? (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmClearAllOpen(true)}
-                    disabled={saving || clearingAll}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-sm font-bold transition-colors disabled:opacity-70"
-                  >
-                    {clearingAll ? (
-                      <Loader2 size={15} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={15} />
-                    )}
-                    Borrar todos los horarios
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={
-                    saving ||
-                    clearingAll ||
-                    hasValidationErrors ||
-                    !hasUnsavedChanges
-                  }
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold transition-colors disabled:opacity-70"
-                >
-                  {saving ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Save size={15} />
-                  )}
-                  {saving ? "Guardando..." : "Guardar bloques horarios"}
-                </button>
-              </div>
-            </>
-          )}
-        </>
-      </CollapsiblePanel>
+          </div>
+        )}
+      </div>
 
       {blockToRemove ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setBlockToRemove(null)}
-          />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-6 shadow-2xl">
-            <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
-              Confirmar eliminacion
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-white border-4 border-slate-900 p-8 shadow-[12px_12px_0_0_#0f172a] animate-in zoom-in-95 duration-200">
+            <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">
+              Confirmar Borrado
             </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
-              Seguro que quieres eliminar este bloque horario?
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-8">
+              ¿Seguro que quieres eliminar este bloque horario?
             </p>
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setBlockToRemove(null)}
-                className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+                className="px-4 py-3 text-xs font-black uppercase tracking-widest border-2 border-slate-900 bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={confirmRemoveBlock}
-                className="px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white"
+                className="px-4 py-3 text-xs font-black uppercase tracking-widest border-2 border-slate-900 bg-rose-400 text-slate-900 hover:bg-rose-500 shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all"
               >
-                Si, eliminar
+                Sí, Eliminar
               </button>
             </div>
           </div>
@@ -706,43 +608,38 @@ export default function StaffSchedulesManager({
       ) : null}
 
       {confirmClearAllOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setConfirmClearAllOpen(false)}
-          />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-6 shadow-2xl">
-            <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
-              Borrar todos los horarios
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-white border-4 border-slate-900 p-8 shadow-[12px_12px_0_0_#0f172a] animate-in zoom-in-95 duration-200">
+            <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">
+              ¿Borrar toda la semana?
             </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
-              Se eliminaran todos los bloques horarios del empleado
-              seleccionado. Esta accion no se puede deshacer.
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-8">
+              Se vaciará la agenda del empleado seleccionado. <span className="text-rose-500 font-black">Esto no se puede deshacer.</span>
             </p>
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setConfirmClearAllOpen(false)}
-                className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+                className="px-4 py-3 text-xs font-black uppercase tracking-widest border-2 border-slate-900 bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all"
               >
-                Cancelar
+                Mejor no
               </button>
               <button
                 type="button"
                 onClick={handleClearAllSchedules}
                 disabled={clearingAll}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest border-2 border-slate-900 bg-rose-400 text-slate-900 hover:bg-rose-500 shadow-[4px_4px_0_0_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-70"
               >
                 {clearingAll ? (
-                  <Loader2 size={13} className="animate-spin" />
+                  <Loader2 size={16} className="animate-spin" strokeWidth={3} />
                 ) : null}
-                {clearingAll ? "Borrando..." : "Si, borrar todo"}
+                {clearingAll ? "Vaciando..." : "Sí, borrar todo"}
               </button>
             </div>
           </div>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

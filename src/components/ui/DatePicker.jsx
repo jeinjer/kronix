@@ -78,7 +78,6 @@ export default function DatePicker({ value, onChange, minDate, availableDays, on
   for (let i = 0; i < firstDay; i++) daysArray.push(null);
   for (let d = 1; d <= daysInMonth; d++) daysArray.push(d);
 
-  // Current selected checks
   const valObj = value ? new Date(value + "T12:00:00") : null;
   const isSelected = (d) => valObj && valObj.getDate() === d && valObj.getMonth() === curMonth && valObj.getFullYear() === curYear;
 
@@ -94,82 +93,81 @@ export default function DatePicker({ value, onChange, minDate, availableDays, on
   };
 
   const isDayUnavailable = (d) => {
-    // If availableDays is provided, strictly enforce it. If null, ignore.
     if (availableDays !== undefined && availableDays !== null) {
       if (!availableDays.includes(d)) return true;
     }
     return false;
   };
 
-  // Format value for trigger button
   const displayVal = valObj 
     ? `${valObj.getDate()} de ${MONTHS[valObj.getMonth()]} de ${valObj.getFullYear()}` 
     : "Seleccionar fecha";
 
   return (
     <div className="relative inline-block text-left w-full sm:w-auto" ref={dropdownRef}>
+      {/* Trigger Button — Neo-Brutalist */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between gap-3 w-full sm:w-[240px] border focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-xl px-4 py-2.5 text-sm font-bold tracking-tight transition-all shadow-sm ${
+        className={`flex items-center justify-between gap-3 w-full sm:w-[260px] border-4 px-4 py-2.5 text-sm font-black uppercase tracking-wider transition-all cursor-pointer ${
           isOpen 
-            ? "bg-white border-cyan-500 text-cyan-700" 
-            : "bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 text-slate-800"
+            ? "bg-cyan-400 border-slate-900 text-slate-900 shadow-none translate-x-[2px] translate-y-[2px]" 
+            : "bg-white border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#0f172a]"
         }`}
       >
         <span className="flex items-center gap-2">
-          <CalendarIcon size={16} className={`shrink-0 ${isOpen ? "text-cyan-600" : "text-slate-500"}`} />
-          <span className="truncate">{displayVal}</span>
+          <CalendarIcon size={16} strokeWidth={3} className="shrink-0" />
+          <span className="truncate normal-case font-bold text-xs tracking-normal">{displayVal}</span>
         </span>
-        <ChevronDown size={14} className={`shrink-0 transition-transform ${isOpen ? "rotate-180 text-cyan-600" : "text-slate-400"}`} />
+        <ChevronDown size={14} className={`shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -5, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -5, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-50 mt-2 sm:right-0 w-[280px] bg-white border border-slate-200 rounded-2xl shadow-xl p-4 origin-top-right overflow-hidden"
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.12 }}
+            className="absolute z-50 mt-2 sm:right-0 w-[290px] bg-white border-4 border-slate-900 shadow-[8px_8px_0_0_#0f172a] p-4 origin-top-right overflow-hidden"
           >
             {/* Calendar Header */}
             <div className="flex items-center justify-between mb-4">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+                className="p-1.5 border-2 border-slate-900 bg-white hover:bg-yellow-400 transition-all shadow-[2px_2px_0_0_#0f172a] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] cursor-pointer"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} strokeWidth={3} />
               </button>
-              <h4 className="text-sm font-black text-slate-800 tracking-tight capitalize flex items-center gap-2">
+              <h4 className="text-sm font-black text-slate-900 tracking-tight uppercase flex items-center gap-2">
                 {MONTHS[curMonth]} {curYear}
                 {isMonthLoading && <span className="w-3 h-3 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></span>}
               </h4>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+                className="p-1.5 border-2 border-slate-900 bg-white hover:bg-yellow-400 transition-all shadow-[2px_2px_0_0_#0f172a] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] cursor-pointer"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={16} strokeWidth={3} />
               </button>
             </div>
 
-            {/* Days of week */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            {/* Days of week header */}
+            <div className="grid grid-cols-7 gap-1 mb-2 border-b-2 border-slate-900 pb-2">
               {DAYS_SHORT.map((day) => (
-                <div key={day} className="text-center text-[10px] uppercase font-black tracking-widest text-slate-400">
+                <div key={day} className="text-center text-[10px] uppercase font-black tracking-widest text-slate-500">
                   {day}
                 </div>
               ))}
             </div>
 
-            {/* Calendar Grid & Loading State */}
+            {/* Calendar Grid */}
             <div className="relative min-h-[190px] w-full flex flex-col">
               {isMonthLoading ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-10">
-                  <div className="w-6 h-6 border-[3px] border-cyan-500 border-t-transparent rounded-full animate-spin mb-3 shadow-sm"></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-cyan-700 bg-cyan-50 px-3 py-1 rounded-full border border-cyan-100 shadow-sm">
+                  <div className="w-8 h-8 border-4 border-cyan-400 border-t-slate-900 animate-spin mb-3"></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 bg-yellow-400 px-3 py-1 border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a]">
                     Analizando Agenda
                   </span>
                 </div>
@@ -189,18 +187,20 @@ export default function DatePicker({ value, onChange, minDate, availableDays, on
                         disabled={disabled}
                         onClick={() => handleSelectDay(day)}
                         className={`
-                          h-8 md:h-9 w-full flex items-center justify-center rounded-lg text-sm transition-all relative
+                          h-8 md:h-9 w-full flex items-center justify-center text-sm transition-all relative cursor-pointer
                           ${disabled 
-                            ? "text-slate-300 opacity-60 cursor-not-allowed line-through" 
+                            ? "text-slate-300 opacity-50 cursor-not-allowed line-through" 
                             : selected
-                              ? "bg-cyan-600 text-white font-black shadow-sm"
-                              : hoverStyles(today)
+                              ? "bg-cyan-400 text-slate-900 font-black border-2 border-slate-900 shadow-[2px_2px_0_0_#0f172a]"
+                              : today
+                                ? "font-black text-cyan-600 bg-cyan-50 border-2 border-cyan-400 hover:bg-cyan-100"
+                                : "font-bold text-slate-700 hover:bg-yellow-100 border-2 border-transparent hover:border-slate-900"
                           }
                         `}
                       >
                         <span className="relative z-10">{day}</span>
                         {today && !selected && (
-                          <span className="absolute bottom-1 w-1 h-1 bg-cyan-500 rounded-full"></span>
+                          <span className="absolute bottom-0.5 w-1.5 h-1.5 bg-cyan-500"></span>
                         )}
                       </button>
                     );
@@ -210,7 +210,7 @@ export default function DatePicker({ value, onChange, minDate, availableDays, on
             </div>
             
             {/* Quick Actions */}
-            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between gap-2">
+            <div className="mt-3 pt-3 border-t-2 border-slate-900 flex justify-between gap-2">
                <button
                  type="button"
                  onClick={() => {
@@ -219,7 +219,7 @@ export default function DatePicker({ value, onChange, minDate, availableDays, on
                    onChange(toInputStr(today.getFullYear(), today.getMonth(), today.getDate()));
                    setIsOpen(false);
                  }}
-                 className="text-xs font-bold text-cyan-600 hover:text-cyan-800 px-2 py-1 transition-colors"
+                 className="text-xs font-black uppercase tracking-widest text-slate-900 bg-yellow-400 border-2 border-slate-900 px-3 py-1.5 shadow-[2px_2px_0_0_#0f172a] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all cursor-pointer"
                >
                  Ir a Hoy
                </button>
@@ -229,9 +229,4 @@ export default function DatePicker({ value, onChange, minDate, availableDays, on
       </AnimatePresence>
     </div>
   );
-}
-
-function hoverStyles(isToday) {
-  if (isToday) return "font-bold text-cyan-600 bg-cyan-50 hover:bg-cyan-100";
-  return "font-medium text-slate-700 hover:bg-slate-100";
 }

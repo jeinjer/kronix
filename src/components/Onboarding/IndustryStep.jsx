@@ -1,48 +1,39 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutTemplate,
   Building2,
   Navigation,
   CheckCircle2,
+  Briefcase,
+  Loader2,
 } from "lucide-react";
+import { getIndustries } from "../../supabase/services/organizations";
 
-const industries = [
-  {
-    id: "beauty",
-    label: "Estética & Wellness",
-    desc: "Barberías, Spas, Salones.",
-    icon: LayoutTemplate,
-    color: "text-orange-400",
-    border: "border-orange-500/30",
-  },
-  {
-    id: "health",
-    label: "Salud & Medicina",
-    desc: "Consultorios, Clínicas.",
-    icon: Building2,
-    color: "text-cyan-400",
-    border: "border-cyan-500/30",
-  },
-  {
-    id: "automotive",
-    label: "Sector Automotriz",
-    desc: "Talleres, Detailing.",
-    icon: Navigation,
-    color: "text-emerald-400",
-    border: "border-emerald-500/30",
-  },
-  {
-    id: "services",
-    label: "Servicios Profesionales",
-    desc: "Consultoría, Legal.",
-    icon: LayoutTemplate,
-    color: "text-indigo-400",
-    border: "border-indigo-500/30",
-  },
-];
+// Icon and color mapping by id or random fallback
+const getIndustryMeta = (id) => {
+  const meta = {
+    beauty: { icon: LayoutTemplate, color: "text-orange-400", bg: "bg-orange-400" },
+    health: { icon: Building2, color: "text-cyan-400", bg: "bg-cyan-400" },
+    automotive: { icon: Navigation, color: "text-yellow-400", bg: "bg-yellow-400" },
+    services: { icon: Briefcase, color: "text-indigo-400", bg: "bg-indigo-400" },
+  };
+  return meta[id] || { icon: Briefcase, color: "text-slate-900", bg: "bg-yellow-400" };
+};
 
 export default function IndustryStep({ formData, setFormData }) {
+  const [industries, setIndustries] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadIndustries() {
+      const { data } = await getIndustries();
+      if (data) setIndustries(data);
+      setLoading(false);
+    }
+    loadIndustries();
+  }, []);
+
   return (
     <motion.div
       key="step3"
@@ -52,41 +43,62 @@ export default function IndustryStep({ formData, setFormData }) {
       className="flex-1 flex flex-col gap-6"
     >
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-          Segmentación
+        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-slate-900 mb-2">
+          rubro
         </h2>
-        <p className="text-slate-600 dark:text-slate-400">
-          Configuración base del motor de KRONIX.
+        <p className="text-sm font-bold text-slate-600 uppercase tracking-widest bg-cyan-400 border-2 border-slate-900 inline-block px-2 py-1 shadow-[2px_2px_0_0_#0f172a]">
+          Selecciona el rubro de tu negocio
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {industries.map((ind) => (
-          <div
-            key={ind.id}
-            onClick={() =>
-              setFormData((prev) => ({ ...prev, industry: ind.id }))
-            }
-            className={`relative p-5 rounded-xl border cursor-pointer transition-all duration-200 group ${formData.industry === ind.id ? `bg-slate-200 dark:bg-slate-800 ${ind.border} ring-1 ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-900 ring-indigo-500` : "bg-slate-100 dark:bg-slate-950/40 border-slate-300 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-700"}`}
-          >
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-white/5`}
-            >
-              <ind.icon size={20} className={ind.color} />
-            </div>
-            <h3 className="text-slate-900 dark:text-white font-bold text-sm mb-1">
-              {ind.label}
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-400 transition-colors">
-              {ind.desc}
-            </p>
-            {formData.industry === ind.id && (
-              <div className="absolute top-4 right-4 text-indigo-500">
-                <CheckCircle2 size={18} />
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-10 text-slate-900">
+          <Loader2 size={32} className="animate-spin mb-4" strokeWidth={3} />
+          <span className="font-black uppercase tracking-widest text-sm animate-pulse">
+            Cargando rubros...
+          </span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {industries.map((ind) => {
+            const meta = getIndustryMeta(ind.id);
+            const Icon = meta.icon;
+            const isSelected = formData.industry === ind.id;
+            
+            return (
+              <div
+                key={ind.id}
+                onClick={() => setFormData((prev) => ({ ...prev, industry: ind.id }))}
+                className={`relative p-5 border-4 border-slate-900 cursor-pointer transition-all duration-300 group ${
+                  isSelected
+                    ? "bg-yellow-400 shadow-[6px_6px_0_0_#0f172a] -translate-y-1 -translate-x-1"
+                    : "bg-white shadow-[4px_4px_0_0_#0f172a] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#0f172a]"
+                }`}
+              >
+                <div
+                  className={`w-12 h-12 flex items-center justify-center mb-4 border-2 border-slate-900 overflow-hidden ${
+                    isSelected ? "bg-white" : meta.bg
+                  }`}
+                >
+                  {ind.image_url ? (
+                    <img src={ind.image_url} alt={ind.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                  ) : (
+                    <Icon size={24} className="text-slate-900" strokeWidth={3} />
+                  )}
+                </div>
+                <h3 className="text-slate-900 font-black uppercase tracking-tight text-lg leading-none mb-1">
+                  {ind.name}
+                </h3>
+                {isSelected && (
+                  <div className="absolute top-4 right-4 text-slate-900">
+                    <CheckCircle2 size={24} strokeWidth={3} />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </motion.div>
   );
 }

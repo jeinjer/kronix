@@ -88,7 +88,7 @@ export const BotChatUI = () => {
             Kronia
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
             <span className="text-slate-400 text-xs">En línea</span>
           </div>
         </div>
@@ -122,10 +122,10 @@ export const BotChatUI = () => {
         >
           <p className="mb-2">¡Sí! Tengo estos horarios disponibles:</p>
           <div className="flex gap-2 flex-wrap">
-            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-emerald-500/30">
+            <span className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-yellow-500/30">
               16:00
             </span>
-            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-emerald-500/30">
+            <span className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-yellow-500/30">
               17:30
             </span>
           </div>

@@ -39,9 +39,9 @@ export default function ForgotPassword() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 font-sans">
         <div className={`${cardClasses} text-center`}>
-          <div className="mx-auto w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 border border-emerald-100 dark:border-emerald-500/20">
+          <div className="mx-auto w-16 h-16 bg-emerald-50 dark:bg-yellow-500/10 rounded-full flex items-center justify-center mb-6 border border-yellow-100 dark:border-yellow-500/20">
             <Send
-              className="text-emerald-600 dark:text-emerald-400"
+              className="text-yellow-600 dark:text-yellow-400"
               size={32}
             />
           </div>
