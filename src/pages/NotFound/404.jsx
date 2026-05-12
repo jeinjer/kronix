@@ -1,82 +1,73 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, ArrowLeft, FileQuestion } from "lucide-react";
-import { motion } from "framer-motion";
+import { Home, ArrowLeft, AlertTriangle } from "lucide-react";
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    // 1. CAMBIO PRINCIPAL: Fondo claro por defecto (slate-50), oscuro con dark: (...)
-    <div className="min-h-screen bg-slate-50 dark:bg-[#050507] flex items-center justify-center p-4 relative overflow-hidden font-sans selection:bg-cyan-500/30 transition-colors duration-500">
-      {/* --- EFECTOS DE FONDO --- */}
-      {/* Ajustamos la opacidad del gradiente para que se vea bien en ambos */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(6,182,212,0.1),transparent_50%)] z-0 pointer-events-none"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none"></div>
+    <div className="min-h-screen bg-[#f0f3fa] flex items-center justify-center p-4 relative overflow-hidden font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif]">
+      {/* Background pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `repeating-linear-gradient(
+            45deg,
+            #0f172a 0px,
+            #0f172a 2px,
+            transparent 2px,
+            transparent 20px
+          )`
+        }}></div>
+      </div>
 
-      {/* --- CONTENIDO --- */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="relative z-10 text-center max-w-lg w-full"
-      >
-        {/* Icono Flotante: Fondo blanco en light, oscuro en dark. Bordes adaptables */}
-        <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-          className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 shadow-[0_0_40px_-10px_rgba(6,182,212,0.3)] mb-8 transition-colors duration-300"
-        >
-          {/* Icono más oscuro en modo claro para contraste */}
-          <FileQuestion
-            size={48}
-            className="text-cyan-600 dark:text-cyan-400 transition-colors duration-300"
-          />
-        </motion.div>
+      <div className="relative z-10 text-center max-w-xl w-full">
+        {/* Icon */}
+        <div className="inline-flex items-center justify-center w-24 h-24 bg-yellow-400 border-4 border-slate-900 shadow-[8px_8px_0_0_#0f172a] mb-8 -rotate-6">
+          <AlertTriangle size={48} strokeWidth={2} className="text-slate-900" />
+        </div>
 
-        {/* Texto 404 Gigante: Gradiente invertido para modo claro */}
-        <h1 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-slate-900 to-slate-400 dark:from-white dark:to-slate-500 tracking-tighter mb-2 transition-all duration-300">
+        {/* 404 Text */}
+        <h1 className="text-[120px] sm:text-[160px] font-black text-slate-900 tracking-tighter leading-none mb-2 uppercase">
           404
         </h1>
 
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4 transition-colors duration-300">
-          Página no encontrada
-        </h2>
+        <div className="bg-slate-900 text-white inline-block px-6 py-2 mb-6 border-4 border-slate-900 shadow-[4px_4px_0_0_#FEE324] -rotate-1">
+          <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tighter">
+            Página no encontrada
+          </h2>
+        </div>
 
-        <p className="text-slate-600 dark:text-slate-400 text-sm mb-10 leading-relaxed px-8 transition-colors duration-300">
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-10 max-w-md mx-auto">
           Parece que la página que buscás se cortó el pelo y desapareció. Puede
           que el enlace esté roto o que la hayamos movido.
         </p>
 
-        {/* Botones de Acción */}
+        {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <button
             onClick={() => navigate(-1)}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all flex items-center justify-center gap-2 group duration-300"
+            className="w-full sm:w-auto px-6 py-3 bg-white border-4 border-slate-900 shadow-[6px_6px_0_0_#0f172a] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[10px_10px_0_0_#0f172a] active:shadow-none active:translate-y-1 active:translate-x-1 transition-all font-black text-sm uppercase tracking-widest text-slate-900 flex items-center justify-center gap-2"
           >
-            <ArrowLeft
-              size={16}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
+            <ArrowLeft size={16} strokeWidth={3} />
             Volver atrás
           </button>
 
           <Link
             to="/"
-            className="w-full sm:w-auto px-8 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm transition-all shadow-lg shadow-cyan-900/20 flex items-center justify-center gap-2 hover:scale-105"
+            className="w-full sm:w-auto px-8 py-3 bg-cyan-400 border-4 border-slate-900 shadow-[6px_6px_0_0_#0f172a] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[10px_10px_0_0_#0f172a] active:shadow-none active:translate-y-1 active:translate-x-1 transition-all font-black text-sm uppercase tracking-widest text-slate-900 flex items-center justify-center gap-2"
           >
-            <Home size={16} />
+            <Home size={16} strokeWidth={3} />
             Ir al Inicio
           </Link>
         </div>
 
-        {/* Footer Sutil */}
-        <div className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5 transition-colors duration-300">
-          <p className="text-[10px] text-slate-400 dark:text-slate-600 uppercase tracking-widest font-bold">
+        {/* Footer */}
+        <div className="mt-12 pt-6 border-t-4 border-slate-900">
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
             ERROR CODE: PAGE_NOT_FOUND
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

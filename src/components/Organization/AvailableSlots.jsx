@@ -44,7 +44,7 @@ const isPastSlot = (slot) =>
   new Date(slot?.startUtc || "").getTime() <= Date.now();
 
 const iconButtonClass =
-  "cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300/60 dark:border-white/15 bg-white/80 dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 transition-colors";
+  "cursor-pointer inline-flex h-8 w-8 items-center justify-center border-2 border-slate-900 bg-white hover:bg-yellow-400 transition-all shadow-[2px_2px_0_0_#0f172a] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]";
 
 const getSlotStatusLabel = (slot) => {
   const occupied = Boolean(slot?.appointmentId);
@@ -318,8 +318,17 @@ export default function AvailableSlots({
   };
 
   const openBookingModal = (slot) => {
+    if (isPublicMode && !user) {
+      toast.error("Debes iniciar sesión para reservar turnos.", {
+        action: {
+          label: "Ingresar",
+          onClick: () => window.location.href = "/login"
+        }
+      });
+      return;
+    }
     setBookingSlot(slot);
-    setClientName("");
+    setClientName(user?.user_metadata?.full_name || "");
     setClientPhone("");
     setBookingModalOpen(true);
   };
@@ -405,7 +414,7 @@ export default function AvailableSlots({
 
   return (
     <>
-      <section className="bg-white dark:bg-[#13131a] border border-slate-200 dark:border-white/10 rounded-2xl p-6 transition-colors duration-500">
+      <section className="bg-white border-4 border-slate-900 shadow-[8px_8px_0_0_#0f172a] p-6 transition-colors duration-500">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
@@ -453,15 +462,15 @@ export default function AvailableSlots({
               </span>
             </div>
           ) : errorMessage ? (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="border-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-800 font-bold shadow-[4px_4px_0_0_#ef4444]">
               {errorMessage}
             </div>
           ) : staffWorkingDays && staffWorkingDays.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 px-4 py-8 text-center text-sm text-slate-600 dark:text-slate-400">
-              Este empleado aún no tiene horarios de atención configurados.
+            <div className="border-4 border-dashed border-slate-400 px-4 py-8 text-center text-sm text-slate-600 font-bold uppercase tracking-widest">
+              Este empleado aún no tiene horarios configurados.
             </div>
           ) : slots.length === 0 || (isPublicMode && slots.filter(s => s.isAvailable && !isPastSlot(s)).length === 0) ? (
-            <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 px-4 py-8 text-center text-sm text-slate-600 dark:text-slate-400">
+            <div className="border-4 border-dashed border-slate-400 px-4 py-8 text-center text-sm text-slate-600 font-bold uppercase tracking-widest">
               No hay horarios disponibles para la fecha seleccionada.
             </div>
           ) : (
@@ -484,12 +493,12 @@ export default function AvailableSlots({
                   <article
                     key={slot.startUtc}
                     title={tooltip}
-                    className={`relative min-h-[132px] rounded-xl border px-3 py-3 transition-colors ${
+                    className={`relative min-h-[132px] border-4 px-3 py-3 transition-all ${
                       disabledExpiredFree
-                        ? "bg-slate-400/10 border-slate-400/30 text-slate-500 cursor-not-allowed"
+                        ? "bg-slate-100 border-slate-300 text-slate-400 cursor-not-allowed"
                         : slot.isAvailable
-                          ? "bg-emerald-500/10 border-emerald-400/40 text-emerald-900 dark:text-emerald-300"
-                          : "bg-orange-500/10 border-orange-400/40 text-orange-900 dark:text-orange-300"
+                          ? "bg-yellow-50 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:shadow-[6px_6px_0_0_#0f172a] hover:-translate-y-0.5"
+                          : "bg-cyan-50 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#22d3ee]"
                     }`}
                   >
                     <span className="absolute top-2 left-2 text-[11px] font-bold uppercase tracking-wide opacity-90">
@@ -573,8 +582,8 @@ export default function AvailableSlots({
             className="absolute inset-0 bg-black/55"
             onClick={() => setBookingModalOpen(false)}
           />
-          <div className="relative w-full max-w-lg rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-5 shadow-2xl">
-            <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+          <div className="relative w-full max-w-lg border-4 border-slate-900 bg-white p-5 shadow-[12px_12px_0_0_#0f172a]">
+            <h4 className="text-sm font-black uppercase tracking-widest text-slate-900">
               Agregar Turno
             </h4>
             <p className="text-xs text-slate-500 mt-1">
@@ -593,14 +602,14 @@ export default function AvailableSlots({
                 value={clientName}
                 onChange={(event) => setClientName(event.target.value)}
                 placeholder="Nombre"
-                className="w-full bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full bg-white border-4 border-slate-900 px-3 py-2.5 text-sm text-slate-900 font-bold focus:outline-none focus:border-cyan-500 transition-colors"
               />
               <input
                 type="text"
                 value={clientPhone}
                 onChange={(event) => setClientPhone(event.target.value)}
                 placeholder="Telefono (recomendado)"
-                className="w-full bg-slate-50 dark:bg-[#181824] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full bg-white border-4 border-slate-900 px-3 py-2.5 text-sm text-slate-900 font-bold focus:outline-none focus:border-cyan-500 transition-colors"
               />
             </div>
 
@@ -608,7 +617,7 @@ export default function AvailableSlots({
               <button
                 type="button"
                 onClick={() => setBookingModalOpen(false)}
-                className="cursor-pointer px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+                className="cursor-pointer px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-white border-4 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >
                 Cerrar
               </button>
@@ -616,7 +625,7 @@ export default function AvailableSlots({
                 type="button"
                 onClick={submitBooking}
                 disabled={isBooking || !bookingSlot}
-                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-60"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-cyan-400 border-4 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all disabled:opacity-60"
               >
                 {isBooking ? (
                   <Loader2 size={13} className="animate-spin" />
@@ -634,8 +643,8 @@ export default function AvailableSlots({
             className="absolute inset-0 bg-black/55"
             onClick={() => setCancelModalOpen(false)}
           />
-          <div className="relative w-full max-w-md rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-5 shadow-2xl">
-            <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+          <div className="relative w-full max-w-md border-4 border-slate-900 bg-white p-5 shadow-[12px_12px_0_0_#0f172a]">
+            <h4 className="text-sm font-black uppercase tracking-widest text-slate-900">
               Cancelar Turno
             </h4>
             <p className="text-xs text-slate-500 mt-1">
@@ -655,7 +664,7 @@ export default function AvailableSlots({
               <button
                 type="button"
                 onClick={() => setCancelModalOpen(false)}
-                className="cursor-pointer px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+                className="cursor-pointer px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-white border-4 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >
                 Volver
               </button>
@@ -663,7 +672,7 @@ export default function AvailableSlots({
                 type="button"
                 onClick={submitCancel}
                 disabled={canceling}
-                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 disabled:opacity-60"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-red-400 border-4 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all disabled:opacity-60"
               >
                 {canceling ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -681,8 +690,8 @@ export default function AvailableSlots({
             className="absolute inset-0 bg-black/55"
             onClick={() => setViewModalOpen(false)}
           />
-          <div className="relative w-full max-w-md rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#13131a] p-5 shadow-2xl">
-            <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+          <div className="relative w-full max-w-md border-4 border-slate-900 bg-white p-5 shadow-[12px_12px_0_0_#0f172a]">
+            <h4 className="text-sm font-black uppercase tracking-widest text-slate-900">
               Detalle del Turno
             </h4>
             <p className="text-sm mt-3 flex items-center gap-1 min-w-0">
@@ -718,7 +727,7 @@ export default function AvailableSlots({
               <button
                 type="button"
                 onClick={() => setViewModalOpen(false)}
-                className="cursor-pointer px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/20"
+                className="cursor-pointer px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-white border-4 border-slate-900 text-slate-900 shadow-[4px_4px_0_0_#0f172a] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >
                 Cerrar
               </button>

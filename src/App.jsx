@@ -13,6 +13,7 @@ import ScrollToTop from './utils/ScrollToTop';
 import { SuperAdminRoute, DashboardRoute, BusinessRoute, ProtectedRoute } from './utils/ProtectedRoutes';
 
 import Home from './pages/Home/Home';
+import BusinessHome from './pages/Home/BusinessHome';
 import AuthPortal from './pages/Auth/Portal/Portal';
 import ForgotPassword from './pages/Auth/ForgotPassword/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword/ResetPassword';
@@ -23,6 +24,7 @@ import UserPanel from './pages/UserPanel/UserPanel';
 import MisTurnos from './pages/MisTurnos/MisTurnos';
 import PublicBooking from './pages/PublicBooking/PublicBooking';
 import Onboarding from './pages/Onboarding/Onboarding';
+import PaymentPage from './pages/Subscription/PaymentPage';
 
 import NotFoundPage from './pages/NotFound/404';
 import { isSuperAdminUser } from './utils/superAdmin';
@@ -70,6 +72,24 @@ function AppContent() {
               element={renderPublicEntry(<AuthPortal />)} 
             />
 
+            {/* RUTAS EXCLUSIVAS PARA DUEÑOS DE NEGOCIO */}
+            <Route 
+              path="/negocios" 
+              element={<BusinessHome />} 
+            />
+            <Route 
+              path="/negocios/login" 
+              element={renderPublicEntry(<AuthPortal isBusinessMode={true} />)} 
+            />
+            <Route 
+              path="/negocios/registro" 
+              element={renderPublicEntry(<AuthPortal isBusinessMode={true} />)} 
+            />
+            <Route 
+              path="/pago-suscripcion" 
+              element={<PaymentPage />} 
+            />
+
             <Route 
               path="/reserva/:slug" 
               element={<PublicBooking />} 
@@ -84,7 +104,7 @@ function AppContent() {
 
             <Route element={<BusinessRoute />}>
               <Route path="/dashboard" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <UserPanel />} />
-              <Route path="/dashboard/:slug" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
+              <Route path="/dashboard/:slug/*" element={perfilLoading ? <HomeLoader /> : isSuperAdminEffective ? <Navigate to="/admin" replace /> : <OrganizationDashboard />} />
             </Route>
             
             <Route element={<ProtectedRoute />}>

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
@@ -19,15 +19,7 @@ import {
 import { getCurrentUser } from "@/supabase/services/users";
 import { supabase } from "@/supabase/supabaseClient";
 import { loadUserProfile } from "@/context/auth/profileService";
-
-// Componente de fondo animado
-const BackgroundEffects = () => (
-  <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-    <div className="absolute inset-0 bg-slate-100 dark:bg-slate-950 transition-colors duration-500"></div>
-    <div className="absolute inset-0 bg-[linear-gradient(to_right,#cbd5e1_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e1_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full" />
-  </div>
-);
+import { Toaster, toast } from "sonner";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -52,6 +44,8 @@ export default function Onboarding() {
     street: "",
     number: "",
     industry: null,
+    lat: null,
+    lng: null,
   });
 
   // --- 1. LÃ“GICA DE PROTECCIÃ“N (GUARD) ---
@@ -62,7 +56,7 @@ export default function Onboarding() {
       const isDevMode = searchParams.get("dev_mode") === "true";
       if (isDevMode) {
         console.warn(
-          "âš ï¸ MODO DESARROLLO ACTIVO: Saltando verificaciÃ³n de organizaciÃ³n.",
+          "âš ï¸  MODO DESARROLLO ACTIVO: Saltando verificaciÃ³n de organizaciÃ³n.",
         );
         setCheckingAuth(false);
         return;
@@ -120,16 +114,18 @@ export default function Onboarding() {
 
   // NavegaciÃ³n entre pasos
   const handleNext = () => {
-    if (step === 1 && formData.name && formData.slug && formData.logoFile)
+    if (step === 1 && formData.name && formData.slug && formData.logoFile) {
       setStep(2);
-    else if (
+    } else if (
       step === 2 &&
       formData.provinceId &&
       formData.cityId &&
       formData.street
-    )
+    ) {
       setStep(3);
-    else if (step === 3 && formData.industry) handleSubmit();
+    } else if (step === 3 && formData.industry) {
+       handleSubmit();
+    }
   };
 
   const handleBack = () => {
@@ -171,23 +167,37 @@ export default function Onboarding() {
         number: formData.number,
       };
 
-      // D. Llamada a la FunciÃ³n SQL (RPC)
+      // D. Llamada a la Función SQL (RPC)
       const { data: responseData, error: rpcError } =
         await createOrganization(orgPayload);
 
       if (rpcError) throw new Error(rpcError.message);
 
-      console.log("OrganizaciÃ³n creada exitosamente:", responseData);
+      // Save coords if they exist
+      if (formData.lat && formData.lng) {
+        try {
+          await supabase
+            .from("organizations")
+            .update({ lat: formData.lat, lon: formData.lng })
+            .eq("slug", formData.slug);
+        } catch(e) {
+          console.error("Error saving coords:", e);
+        }
+      }
 
-      // E. RedirecciÃ³n final
+      toast.success("¡Sede creada con éxito!", { id: "onboard-success" });
+
+      // E. Redirección final
       setTimeout(() => {
         setLoading(false);
         navigate("/dashboard");
       }, 1500);
     } catch (error) {
-      console.error("Error crÃ­tico en onboarding:", error);
+      console.error("Error crítico en onboarding:", error);
       setLoading(false);
-      alert(error.message || "OcurriÃ³ un error inesperado creando tu cuenta.");
+      toast.error(error.message || "Ocurrió un error inesperado.", {
+        id: "onboard-error",
+      });
     }
   };
 
@@ -209,12 +219,11 @@ export default function Onboarding() {
 
   // --- 5. RENDERIZADO ---
 
-  // Si estamos verificando si tiene empresas, mostramos un spinner de carga completa
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center font-sans transition-colors duration-500">
-        <Loader2 size={40} className="text-cyan-500 animate-spin mb-4" />
-        <p className="text-slate-600 dark:text-slate-400 text-sm animate-pulse">
+      <div className="min-h-screen bg-[#f0f3fa] flex flex-col items-center justify-center font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif] transition-colors duration-500">
+        <Loader2 size={64} className="text-slate-900 animate-spin mb-4" strokeWidth={3} />
+        <p className="text-slate-900 font-black uppercase tracking-widest text-sm animate-pulse">
           Verificando cuenta...
         </p>
       </div>
@@ -222,46 +231,70 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-900 dark:text-slate-100 relative transition-colors duration-500">
-      <BackgroundEffects />
+    <div className="min-h-screen bg-[#f0f3fa] flex items-center justify-center p-4 font-[System-ui,-apple-system,BlinkMacSystemFont,Segoe_UI,Roboto,Helvetica_Neue,Arial,sans-serif] text-slate-900 relative transition-colors duration-500 overflow-hidden">
+      
+      <Toaster 
+        position="top-center" 
+        toastOptions={{
+          style: {
+            background: '#ffffff',
+            border: '4px solid #0f172a',
+            borderRadius: '0',
+            boxShadow: '6px 6px 0 0 #0f172a',
+            color: '#0f172a',
+            fontFamily: 'System-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            fontWeight: '900',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontSize: '14px',
+          },
+          success: {
+            style: {
+              background: '#4ade80', // green-400
+            },
+          },
+          error: {
+            style: {
+              background: '#f87171', // red-400
+            },
+          },
+        }}
+      />
 
-      <div className="w-full max-w-2xl relative z-10">
+      {/* Background patterns */}
+      <div className="fixed inset-0 pointer-events-none opacity-10 bg-[radial-gradient(#0f172a_2px,transparent_2px)] [background-size:32px_32px]"></div>
+      
+      <div className="w-full max-w-[800px] relative z-10">
         {/* HEADER */}
         <div className="flex justify-between items-center mb-8 px-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img
-                src="/kronix.svg"
-                alt="Kronix"
-                className="w-9 h-9 object-contain dark:invert drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-              />
+            <div className="w-12 h-12 bg-cyan-400 border-4 border-slate-900 shadow-[4px_4px_0_0_#0f172a] flex items-center justify-center transform -rotate-6">
+              <span className="font-black text-xl text-slate-900">K</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Alta de Sede
+              <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900">
+                Alta de negocio
               </h1>
-              <p className="text-xs text-slate-400 uppercase tracking-widest">
-                Setup Inicial
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 bg-white border-2 border-slate-900 px-2 py-0.5 shadow-[2px_2px_0_0_#0f172a]">
+                Completa los datos de tu negocio
               </p>
             </div>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Paso{" "}
-              <span className="text-slate-900 dark:text-white font-bold">
-                {step}
-              </span>{" "}
-              de 3
-            </p>
+             <div className="bg-white border-4 border-slate-900 px-4 py-2 shadow-[4px_4px_0_0_#0f172a] font-black uppercase text-sm tracking-widest">
+               Paso <span className="text-yellow-500">{step}</span> / 3
+             </div>
           </div>
         </div>
 
         {/* CONTENEDOR PRINCIPAL */}
-        <div className="bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl relative overflow-visible transition-colors duration-500">
+        <div className="bg-white border-4 border-slate-900 rounded-none shadow-[12px_12px_0_0_#0f172a] relative overflow-visible transition-colors duration-500">
+          
           {/* BARRA DE PROGRESO */}
-          <div className="h-1 bg-slate-200 dark:bg-slate-800 w-full rounded-t-2xl overflow-hidden">
+          <div className="h-5 bg-slate-100 border-b-4 border-slate-900 w-full overflow-hidden relative">
+            <div className="absolute inset-x-0 inset-y-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,rgba(0,0,0,0.2)_25%,rgba(0,0,0,0.2)_50%,transparent_50%,transparent_75%,rgba(0,0,0,0.2)_75%,rgba(0,0,0,0.2)_100%)] bg-[length:20px_20px]"></div>
             <motion.div
-              className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+              className={`h-full ${step === 3 ? 'bg-yellow-400' : 'bg-cyan-400'} border-r-4 border-slate-900`}
               initial={{ width: "0%" }}
               animate={{
                 width: step === 1 ? "33%" : step === 2 ? "66%" : "100%",
@@ -270,7 +303,7 @@ export default function Onboarding() {
             />
           </div>
 
-          <div className="p-8 md:p-10 min-h-[520px] flex flex-col">
+          <div className="p-8 md:p-12 min-h-[550px] flex flex-col pt-10">
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <IdentityStep
@@ -292,13 +325,13 @@ export default function Onboarding() {
             </AnimatePresence>
 
             {/* BARRA DE NAVEGACIÃ“N INFERIOR */}
-            <div className="mt-8 flex items-center justify-between border-t border-slate-200 dark:border-white/5 pt-6">
+            <div className="mt-8 flex items-center justify-between border-t-4 border-slate-900 pt-8 pt-8">
               {step > 1 ? (
                 <button
                   onClick={handleBack}
-                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/5 transition-colors"
+                  className="bg-white border-4 border-slate-900 px-6 py-3 font-black uppercase tracking-widest text-sm shadow-[4px_4px_0_0_#0f172a] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0_0_#0f172a] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <ArrowLeft size={16} /> Volver
+                  <ArrowLeft size={18} strokeWidth={3} /> Volver
                 </button>
               ) : (
                 <div></div>
@@ -307,10 +340,10 @@ export default function Onboarding() {
               <button
                 onClick={step === 3 ? handleSubmit : handleNext}
                 disabled={!isStepValid()}
-                className={`flex items-center gap-2 px-8 py-3 rounded-full font-bold text-sm transition-all duration-300 ${isStepValid() ? "bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)] cursor-pointer" : "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed opacity-50"}`}
+                className={`flex items-center gap-2 px-8 py-4 font-black text-sm uppercase tracking-widest transition-all duration-300 border-4 border-slate-900 ${isStepValid() ? "bg-yellow-400 text-slate-900 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[8px_8px_0_0_#0f172a] shadow-[4px_4px_0_0_#0f172a] active:translate-x-1 active:translate-y-1 active:shadow-none cursor-pointer" : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-60 shadow-none border-dashed"}`}
               >
-                {step === 3 ? "Lanzar Plataforma" : "Siguiente"}
-                {step !== 3 && <ArrowRight size={16} />}
+                {step === 3 ? "Finalizar" : "Siguiente"}
+                {step !== 3 && <ArrowRight size={18} strokeWidth={3} />}
               </button>
             </div>
           </div>

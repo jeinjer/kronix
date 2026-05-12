@@ -9,7 +9,7 @@ export default function HeroSection() {
   const roles = [
     { title: "tu Barbería", color: "text-orange-400" },
     { title: "tu Consultorio", color: "text-cyan-400" },
-    { title: "tu Taller", color: "text-emerald-400" },
+    { title: "tu Taller", color: "text-yellow-400" },
     { title: "tu Estética", color: "text-pink-400" },
     { title: "tu Negocio", color: "text-indigo-400" },
   ];

@@ -27,12 +27,12 @@ export function LocationProvider({ children }) {
     localStorage.removeItem("kronix_user_location_v2");
   };
 
-  const setManualLocation = (provinceId, cityId, provinceName, cityName) => {
+  const setManualLocation = (provinceId, cityId, provinceName, cityName, latitude, longitude) => {
     if (!provinceId && !cityId) {
       clearLocation();
       return;
     }
-    saveLocation({ provinceId, cityId, provinceName, cityName });
+    saveLocation({ provinceId, cityId, provinceName, cityName, latitude: latitude || null, longitude: longitude || null });
   };
 
   return (

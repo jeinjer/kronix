@@ -11,12 +11,12 @@ export default function ClientExperienceSection() {
           <BotChatUI />
         </div>
         <div className="order-1 md:order-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-bold mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 text-xs font-bold mb-6">
             <Smartphone size={14} /> CERO FRICCIÓN
           </div>
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
             Tus clientes{" "}
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-400 to-cyan-400">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-yellow-400 to-cyan-400">
               no instalan nada.
             </span>
           </h2>
@@ -33,7 +33,7 @@ export default function ClientExperienceSection() {
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center border border-slate-300 dark:border-slate-700">
-                  <CheckCircle2 size={14} className="text-emerald-500" />
+                  <CheckCircle2 size={14} className="text-yellow-500" />
                 </div>
                 <span className="text-slate-700 dark:text-slate-300">
                   {item}
