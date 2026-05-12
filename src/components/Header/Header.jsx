@@ -43,6 +43,8 @@ export default function Header() {
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedCityId, setSelectedCityId] = useState("");
   const [loadingProvinces, setLoadingProvinces] = useState(true);
+  const [provinceInput, setProvinceInput] = useState("");
+  const [cityInput, setCityInput] = useState("");
 
   useEffect(() => {
     if (isLocationDropdownOpen && provinces.length === 0) {
@@ -56,26 +58,66 @@ export default function Header() {
     }
   }, [isLocationDropdownOpen]);
 
-  useEffect(() => {
-    if (!selectedProvinceId) {
-      setCities([]);
-      return;
-    }
 
-    const loadCities = async () => {
-      const { data } = await getCitiesByProvince(selectedProvinceId);
-      if (data) setCities(data);
-    };
-
-    loadCities();
-  }, [selectedProvinceId]);
 
   useEffect(() => {
     if (userLocation) {
       setSelectedProvinceId(userLocation.provinceId || "");
       setSelectedCityId(userLocation.cityId || "");
+      setProvinceInput(userLocation.provinceName || "");
+      setCityInput(userLocation.cityName || "");
     }
   }, [userLocation]);
+
+  // Sync city list when province changes via input
+  useEffect(() => {
+    if (!selectedProvinceId) { setCities([]); return; }
+    getCitiesByProvince(selectedProvinceId).then(({ data }) => { if (data) setCities(data); });
+  }, [selectedProvinceId]);
+
+  const handleProvinceInputChange = (e) => {
+    const val = e.target.value;
+    setProvinceInput(val);
+    const matched = provinces.find((p) => p.name.toLowerCase() === val.toLowerCase());
+    if (matched) {
+      setSelectedProvinceId(matched.id);
+      setSelectedCityId("");
+      setCityInput("");
+    } else {
+      setSelectedProvinceId("");
+      setSelectedCityId("");
+      setCityInput("");
+    }
+  };
+
+  const handleProvinceBlur = () => {
+    if (selectedProvinceId) {
+      const p = provinces.find((p) => p.id == selectedProvinceId);
+      if (p) setProvinceInput(p.name);
+    } else {
+      setProvinceInput("");
+    }
+  };
+
+  const handleCityInputChange = (e) => {
+    const val = e.target.value;
+    setCityInput(val);
+    const matched = cities.find((c) => c.name.toLowerCase() === val.toLowerCase());
+    if (matched) {
+      setSelectedCityId(matched.id);
+    } else {
+      setSelectedCityId("");
+    }
+  };
+
+  const handleCityBlur = () => {
+    if (selectedCityId) {
+      const c = cities.find((c) => c.id == selectedCityId);
+      if (c) setCityInput(c.name);
+    } else {
+      setCityInput("");
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -114,8 +156,8 @@ export default function Header() {
   };
 
   const handleApplyLocation = () => {
-    const prov = provinces.find(p => p.id === parseInt(selectedProvinceId));
-    const cit = cities.find(c => c.id === parseInt(selectedCityId));
+    const prov = provinces.find(p => p.id == selectedProvinceId);
+    const cit = cities.find(c => c.id == selectedCityId);
     setManualLocation(
       selectedProvinceId,
       selectedCityId,
@@ -219,9 +261,15 @@ export default function Header() {
                   className="flex items-center gap-1.5 text-slate-900 hover:text-white text-[13px] font-black tracking-widest uppercase transition-colors"
                 >
                   <MapPin size={16} className="shrink-0" strokeWidth={3} />
-                  <span className="max-w-[110px] truncate leading-none pt-0.5">
-                    {userLocation?.cityName || userLocation?.provinceName || "Todo el país"}
-                  </span>
+                  {(() => {
+                    const label = userLocation?.cityName || userLocation?.provinceName || "Todo el país";
+                    const fontSize = label.length > 18 ? "text-[9px]" : label.length > 12 ? "text-[11px]" : "text-[13px]";
+                    return (
+                      <span className={`max-w-[120px] leading-tight pt-0.5 break-words text-center ${fontSize}`}>
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </button>
 
                 {/* Location Popover */}
@@ -234,35 +282,36 @@ export default function Header() {
                     <div className="flex flex-col gap-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Provincia</label>
-                        <select
-                          value={selectedProvinceId}
-                          onChange={(e) => {
-                            setSelectedProvinceId(e.target.value);
-                            setSelectedCityId("");
-                          }}
+                        <input
+                          list="header-provinces-list"
+                          value={provinceInput}
+                          onChange={handleProvinceInputChange}
+                          onFocus={() => setProvinceInput("")}
+                          onBlur={handleProvinceBlur}
                           disabled={loadingProvinces}
-                          className="w-full bg-slate-50 border-2 border-slate-900 rounded-none px-2 py-2 text-slate-900 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 appearance-none cursor-pointer"
-                        >
-                          <option value="">{loadingProvinces ? "Cargando..." : "Todas las provincias"}</option>
-                          {provinces.map((p) => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
+                          placeholder={loadingProvinces ? "Cargando..." : "Ej. Buenos Aires"}
+                          className="w-full bg-slate-50 border-2 border-slate-900 px-3 py-2 text-slate-900 font-bold text-sm focus:outline-none focus:border-cyan-400 focus:shadow-[2px_2px_0_0_#22d3ee] transition-all disabled:opacity-50"
+                        />
+                        <datalist id="header-provinces-list">
+                          {provinces.map((p) => <option key={p.id} value={p.name} />)}
+                        </datalist>
                       </div>
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ciudad</label>
-                        <select
-                          value={selectedCityId}
-                          onChange={(e) => setSelectedCityId(e.target.value)}
+                        <input
+                          list="header-cities-list"
+                          value={cityInput}
+                          onChange={handleCityInputChange}
+                          onFocus={() => setCityInput("")}
+                          onBlur={handleCityBlur}
                           disabled={!selectedProvinceId}
-                          className="w-full bg-slate-50 border-2 border-slate-900 rounded-none px-2 py-2 text-slate-900 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 appearance-none cursor-pointer disabled:opacity-50"
-                        >
-                          <option value="">Todas las ciudades</option>
-                          {cities.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
+                          placeholder={selectedProvinceId ? "Ej. La Plata" : "Elegí una provincia primero"}
+                          className="w-full bg-slate-50 border-2 border-slate-900 px-3 py-2 text-slate-900 font-bold text-sm focus:outline-none focus:border-cyan-400 focus:shadow-[2px_2px_0_0_#22d3ee] transition-all disabled:opacity-50"
+                        />
+                        <datalist id="header-cities-list">
+                          {cities.map((c) => <option key={c.id} value={c.name} />)}
+                        </datalist>
                       </div>
                     </div>
 
@@ -274,6 +323,8 @@ export default function Header() {
                           setIsLocationDropdownOpen(false);
                           setSelectedProvinceId("");
                           setSelectedCityId("");
+                          setProvinceInput("");
+                          setCityInput("");
                         }}
                         className="flex-1 text-[11px] uppercase tracking-widest text-slate-900 font-black border-2 border-slate-900 hover:bg-slate-100 rounded-none py-2 flex items-center justify-center transition-colors shadow-[2px_2px_0_0_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
                       >

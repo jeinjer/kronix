@@ -126,20 +126,29 @@ export const getIndustries = async () => {
   }
 };
 
-export const getExploreOrganizations = async ({ searchQuery = '', category = null, provinceId = null, cityId = null }) => {
+export const getExploreOrganizations = async ({
+  searchQuery = '',
+  category = null,
+  provinceId = null,
+  cityId = null,
+  sortBy = 'newest',   // 'newest' | 'az'
+  page = 0,
+  limit = 12,
+}) => {
   try {
     let query = supabase
       .from('organizations')
       .select(`
         *,
         cities:city_id(name),
-        provinces:province_id(name)
-      `);
+        provinces:province_id(name),
+        industries:industry(id, name)
+      `, { count: 'exact' });
 
     if (category && category !== 'todos') {
       query = query.eq('industry', category);
     }
-    
+
     if (searchQuery) {
       query = query.ilike('name', `%${searchQuery}%`);
     }
@@ -152,13 +161,25 @@ export const getExploreOrganizations = async ({ searchQuery = '', category = nul
       query = query.eq('city_id', cityId);
     }
 
-    const { data, error } = await query;
-    
+    // Backend sort
+    if (sortBy === 'az') {
+      query = query.order('name', { ascending: true });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    // Pagination
+    const from = page * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
     if (error) throw error;
-    
-    return { data: data || [], error: null };
+
+    return { data: data || [], error: null, count: count ?? 0 };
   } catch (error) {
     console.error('Error en getExploreOrganizations:', error);
-    return { data: [], error };
+    return { data: [], error, count: 0 };
   }
 };
